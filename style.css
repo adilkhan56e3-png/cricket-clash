@@ -21,6 +21,9 @@ h2{margin:20px 0 10px;font-size:1.1rem}
 .btn-big:disabled{background:#33503f;color:#9fb5a6;cursor:not-allowed}
 .btn-hit{display:block;width:100%;padding:18px;background:#dc2626;color:#fff;border:none;border-radius:12px;font-size:1.4rem;font-weight:800;cursor:pointer;margin:14px 0}
 .fineprint{font-size:.8rem;color:#8fb59d;text-align:center;margin-top:14px}
+.xi-preview{margin-top:12px}
+.xi-team{background:#12291d;border:2px solid #2a4a38;border-radius:12px;padding:10px;margin-bottom:10px;font-size:.9rem;line-height:1.7}
+.xi-team .role{font-size:.7rem;color:#ffd700}
 .hidden{display:none!important}
 .toss-card{background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:20px;text-align:center}
 .matchup{font-size:1.2rem;font-weight:700;margin-bottom:14px}
