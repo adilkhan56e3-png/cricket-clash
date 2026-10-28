@@ -3,71 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Cricket Clash — World Cricket Game</title>
-<link rel="stylesheet" href="style.css">
+<title>Cricket Clash 3D — Realistic 3D Cricket</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07130c;color:#eafff0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:14px 16px;background:#0b1f16;border-bottom:2px solid #2a4a38;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:1.6rem;font-weight:900}.logo span{color:#ffd700}.tag{font-size:.8rem;color:#9fd8b0}
+main{max-width:1100px;margin:0 auto;padding:14px}
+.screen{display:none}.screen.active{display:block}
+h2{margin:10px 0}.note{font-size:.85rem;color:#bfe8cd;background:#12291d;border:1px solid #2a4a38;border-radius:10px;padding:10px}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:10px 0}
+.team-card{border:2px solid #2a4a38;border-radius:12px;padding:10px;cursor:pointer;background:#0f241a}
+.team-card.sel{border-color:#ffd700;background:#1c3a28}
+.tc-name{font-weight:800}.tc-rank{font-size:.8rem;color:#9fd8b0}.tc-stars{font-size:.8rem;color:#ffd700}
+.pill-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.pill{padding:9px 14px;border-radius:999px;border:2px solid #2a4a38;background:#12291d;color:#eafff0;cursor:pointer;font-weight:700}
+.pill.active{background:#ffd700;color:#111;border-color:#ffd700}
+.btn-big{display:block;width:100%;padding:16px;background:#16a34a;color:#fff;border:none;border-radius:12px;font-size:1.2rem;font-weight:800;cursor:pointer;margin:12px 0}
+.btn-big:disabled{opacity:.5}.btn-sec{background:#1e3a2f;color:#eafff0;border:1px solid #2a4a38;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}
+#scene-wrap{position:relative;border:2px solid #2a4a38;border-radius:14px;overflow:hidden;background:#0a2a16}
+#scene-wrap canvas{display:block;width:100%;height:62vh;min-height:420px}
+.big-text{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:3rem;font-weight:900;color:#ffd700;text-shadow:0 3px 0 #000,0 0 24px #000;pointer-events:none}
+.hidden{display:none!important}
+.scorebug{display:flex;align-items:stretch;flex-wrap:wrap;border-radius:10px;overflow:hidden;margin-top:10px;background:#0b1f16;border:1px solid #2a4a38}
+.sb-left,.sb-right{display:flex;align-items:center;gap:6px;padding:8px 10px;font-size:1.05rem;color:#fff}
+.sb-right{margin-left:auto}.sb-mid,.sb-mid2{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:.85rem;min-width:0}
+.sb-face{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#334155;color:#fff;font-size:.7rem;font-weight:700;flex:none}
+.sb-pname{white-space:normal;overflow-wrap:anywhere}
+.sb-sub{font-size:.85rem;color:#bfe8cd;margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.panel{background:#12291d;border:1px solid #2a4a38;border-radius:12px;padding:10px}
+.panel h3{margin:0 0 6px;font-size:.95rem}
+.controls{background:#12291d;border:1px solid #2a4a38;border-radius:12px;padding:12px;margin-top:10px}
+.ctrl-title{margin:0 0 6px;color:#bfe8cd}
+#timing-box{background:#0b1f16;border:2px solid #ffd700;border-radius:12px;padding:10px;margin:10px 0}
+.timing-bar{position:relative;height:18px;background:#1e3a2f;border-radius:9px;overflow:hidden}
+#timing-needle{position:absolute;top:0;bottom:0;width:3px;background:#fff}
+.zone-perfect{position:absolute;left:45%;width:10%;top:0;bottom:0;background:rgba(22,163,74,.55)}
+.zone-good{position:absolute;left:35%;width:30%;top:0;bottom:0;background:rgba(255,215,0,.25)}
+.btn-hit{display:block;width:100%;padding:18px;background:#dc2626;color:#fff;border:none;border-radius:12px;font-size:1.4rem;font-weight:800;cursor:pointer;margin:10px 0}
+.commentary{background:#12291d;border:1px solid #2a4a38;border-radius:12px;padding:12px;margin-top:10px}
+.commentary ul{list-style:none;padding:0;margin:0;max-height:180px;overflow:auto}
+.commentary li{padding:6px 0;border-bottom:1px solid #1e3a2f;font-size:.9rem}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{padding:4px 6px;text-align:left;border-bottom:1px solid #1e3a2f}
+canvas.map{background:#0b3d1e;border-radius:8px}
+.topbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+@media(max-width:640px){.panels{grid-template-columns:1fr}.big-text{font-size:2rem}.logo{font-size:1.3rem}.sb-left,.sb-right{padding:6px 8px}.sb-mid,.sb-mid2{font-size:.75rem;padding:4px 6px}.sb-face{width:22px;height:22px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body>
-<div id="app">
-
-  <!-- HOME / TEAM SELECT -->
+<header>
+  <div class="logo">🏏 Cricket Clash <span>3D</span></div>
+  <div class="tag">Real 3D stadium · broadcast cameras · full match engine</div>
+</header>
+<main>
+  <!-- HOME -->
   <section id="screen-home" class="screen active">
-    <h1 class="logo">🏏 CRICKET CLASH</h1>
-    <img src="banner.jpg" alt="Cricket Clash" style="width:100%;border-radius:12px;margin:6px 0 2px" onerror="this.remove()">
-    <p class="tagline">World's Top 15 Teams • Real Current Players • Playable Matches</p>
-
-    <h2>1. Choose YOUR team</h2>
-    <div id="team-grid" class="team-grid"></div>
-
-    <h2>2. Choose OPPONENT</h2>
-    <div id="opp-grid" class="team-grid"></div>
-
-    <h2>3. Match length</h2>
+    <h2>Select your team</h2>
+    <div class="note">Athletes in this game are original procedural 3D models in team kits — no real player photos or scanned likenesses are used. Squads, roles and ratings follow current international selections.</div>
+    <h3>Your team</h3><div class="team-grid" id="team-grid"></div>
+    <h3>Opponent</h3><div class="team-grid" id="opp-grid"></div>
+    <div id="xi-preview" class="note" style="margin-top:10px"></div>
+    <h3>Overs</h3>
     <div class="pill-row" id="overs-row">
-      <button class="pill active" data-overs="5">5 Overs</button>
-      <button class="pill" data-overs="10">10 Overs</button>
-      <button class="pill" data-overs="20">20 Overs</button>
+      <button class="pill over active" data-over="5">5 overs</button>
+      <button class="pill over" data-over="10">10 overs</button>
+      <button class="pill over" data-over="20">20 overs</button>
     </div>
-
-    <button id="btn-play" class="btn-big" disabled>Select both teams to continue</button>
-    <div id="xi-preview" class="xi-preview"></div>
-    <p class="fineprint">Player faces are stylized cartoon avatars, not real photos. Squads reflect recent current selections.</p>
+    <button class="btn-big" id="btn-play">▶ Play Match</button>
   </section>
 
   <!-- TOSS -->
   <section id="screen-toss" class="screen">
-    <h1 class="logo">🏏 TOSS TIME</h1>
-    <div class="toss-card">
-      <p id="toss-matchup" class="matchup"></p>
-      <p>Call the toss:</p>
-      <div class="pill-row">
-        <button class="pill toss-call" data-call="heads">Heads</button>
-        <button class="pill toss-call" data-call="tails">Tails</button>
-      </div>
-      <p id="toss-result" class="toss-result"></p>
-      <div id="toss-choice" class="hidden">
-        <p>You won the toss! Choose:</p>
-        <div class="pill-row">
-          <button class="pill" id="choose-bat">🏏 Bat First</button>
-          <button class="pill" id="choose-bowl">🎯 Bowl First</button>
-        </div>
-      </div>
-      <p id="toss-ai-choice" class="hidden"></p>
-      <button id="btn-start-match" class="btn-big hidden">Start Match →</button>
+    <h2>🪙 Toss</h2>
+    <p id="toss-text">Call it:</p>
+    <div class="pill-row">
+      <button class="pill" id="btn-heads">Heads</button>
+      <button class="pill" id="btn-tails">Tails</button>
     </div>
+    <p id="toss-result"></p>
+    <div id="toss-choice" class="hidden">
+      <p>You won the toss. Choose:</p>
+      <div class="pill-row">
+        <button class="pill" id="btn-bat-first">🏏 Bat first</button>
+        <button class="pill" id="btn-bowl-first">🎳 Bowl first</button>
+      </div>
+    </div>
+    <button class="btn-big hidden" id="btn-start-match">▶ Start Match</button>
   </section>
 
   <!-- MATCH -->
   <section id="screen-match" class="screen">
-    <div class="field-wrap">
-      <canvas id="field" width="720" height="400"></canvas>
-      <div id="big-text" class="big-text hidden"></div>
-      <div id="timing-box" class="timing-box hidden">
-        <div class="timing-label">Tap HIT at the right moment!</div>
-        <div class="timing-bar" id="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
-      </div>
-      <button id="btn-hit" class="btn-hit hidden">🏏 HIT!</button>
+    <div class="topbar">
+      <button class="btn-sec" id="btn-pause">⏸ Pause</button>
+      <button class="btn-sec" id="btn-sound">🔊 Sound: ON</button>
+      <button class="btn-sec" id="btn-quality">🎞 Quality: High</button>
+      <button class="btn-sec" id="btn-cam">📷 Camera: Broadcast</button>
+      <button class="btn-sec" id="btn-scorecard">📋 Scorecard</button>
     </div>
-
+    <div id="scene-wrap">
+      <div id="big-text" class="big-text hidden"></div>
+    </div>
     <div class="scorebug">
       <div class="sb-left" id="sb-left"><b id="sb-abbr-bat"></b> <b id="sb-score2"></b> <span id="sb-overs2"></span></div>
       <div class="sb-mid">
@@ -77,60 +114,60 @@
       <div class="sb-mid2"><span class="sb-face" id="sb-bowl-face"></span><span class="sb-pname" id="sb-bowl1"></span></div>
       <div class="sb-right" id="sb-right"><b id="sb-abbr-bowl"></b></div>
     </div>
-    <div class="sb-sub"><span id="sb-rr"></span> • <span id="sb-target"></span> <button id="btn-sound" onclick="toggleSound()">🔊 Voice: ON</button></div>
+    <div class="sb-sub"><span id="sb-rr"></span> • <span id="sb-target"></span> • <span id="sb-speed"></span></div>
 
+    <div class="panels">
+      <div class="panel"><h3>🎯 Pitch map — last bounce</h3><canvas class="map" id="pitch-map" width="220" height="150"></canvas></div>
+      <div class="panel"><h3>🧭 Wagon wheel — last shot</h3><canvas class="map" id="wagon" width="220" height="150"></canvas></div>
+    </div>
 
-    <!-- Batting controls -->
+    <div id="timing-box" class="hidden">
+      <div>Tap HIT at the right moment! <span id="timing-hint"></span></div>
+      <div class="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
+    </div>
+
     <div id="bat-controls" class="controls hidden">
-      <p class="ctrl-title">Choose your shot, then tap BOWL — hit the ball at the perfect moment!</p>
+      <p class="ctrl-title">Choose your shot, then tap BOWL — hit the ball at the perfect moment! (Space = HIT, 1–6 = shots)</p>
       <div class="pill-row shot-row">
-        <button class="pill shot active" data-shot="defend">🛡️ Defend</button>
-        <button class="pill shot" data-shot="normal">🏏 Drive</button>
-        <button class="pill shot" data-shot="attack">💥 Attack</button>
+        <button class="pill shot" data-shot="defend">🛡️ Defend</button>
+        <button class="pill shot active" data-shot="drive">🏏 Front-foot Drive</button>
+        <button class="pill shot" data-shot="cut">✂️ Back-foot Cut</button>
+        <button class="pill shot" data-shot="pull">💪 Pull</button>
+        <button class="pill shot" data-shot="sweep">🧹 Sweep</button>
         <button class="pill shot" data-shot="loft">🚀 Lofted</button>
       </div>
       <button id="btn-bowl-ball" class="btn-big">🎳 Bowl the Ball</button>
+      <button id="btn-hit" class="btn-hit hidden">🏏 HIT!</button>
     </div>
 
-    <!-- Bowling controls -->
     <div id="bowl-controls" class="controls hidden">
       <p class="ctrl-title">Pick a delivery and bowl it!</p>
       <div class="pill-row">
         <button class="pill delivery active" data-del="fast">⚡ Fast</button>
+        <button class="pill delivery" data-del="swing">🌪️ Swing</button>
+        <button class="pill delivery" data-del="seam">🧵 Seam</button>
         <button class="pill delivery" data-del="yorker">🎯 Yorker</button>
+        <button class="pill delivery" data-del="bouncer">⬆️ Bouncer</button>
         <button class="pill delivery" data-del="slower">🐢 Slower Ball</button>
-        <button class="pill delivery" data-del="spin">🌀 Spin / Swing</button>
+        <button class="pill delivery" data-del="spin">🌀 Spin</button>
       </div>
       <button id="btn-bowl-delivery" class="btn-big">🎳 Bowl!</button>
     </div>
 
-    <div class="commentary">
-      <h3>📻 Commentary</h3>
-      <ul id="commentary-list"></ul>
-    </div>
-
-    <details class="scorecard">
-      <summary>📋 Full Scorecard</summary>
-      <div id="scorecard-body"></div>
-    </details>
+    <div class="commentary"><h3>📻 Commentary</h3><ul id="commentary-list"></ul></div>
+    <div id="scorecard-wrap" class="hidden"></div>
   </section>
 
   <!-- RESULT -->
   <section id="screen-result" class="screen">
-    <h1 class="logo">🏆 RESULT</h1>
-    <div class="result-card">
-      <p id="result-title" class="result-title"></p>
-      <p id="result-margin" class="result-margin"></p>
-      <div id="result-scores"></div>
-      <p id="result-mom"></p>
-      <div class="pill-row">
-        <button class="pill" id="btn-rematch">🔄 Rematch</button>
-        <button class="pill" id="btn-new-teams">🏏 Change Teams</button>
-      </div>
-    </div>
+    <h2 id="result-title"></h2>
+    <p id="result-sub"></p>
+    <div id="result-scorecard"></div>
+    <button class="btn-big" id="btn-rematch">🔄 Rematch</button>
+    <button class="btn-sec" id="btn-home">🏠 Home</button>
   </section>
-
-</div>
-<script src="game.js"></script>
+</main>
+<script>setTimeout(()=>{if(!window.__cc3d_loaded){const w=document.getElementById('scene-wrap');if(w)w.innerHTML='<div style="padding:40px;text-align:center">3D game failed to load. Please check your connection and refresh — the game needs WebGL and the Three.js CDN.</div>';}},9000);</script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
