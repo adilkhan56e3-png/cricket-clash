@@ -87,17 +87,22 @@ const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
 const stars=t=>{const r=t.rank;return r<=3?'★★★★★':r<=6?'★★★★':r<=10?'★★★':'★★';};
 let AC=null;
-function beep(f,d,type='sine',v=0.15){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+let soundOn=true;
+function unlockAudio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){}}
+function beep(f,d,type='sine',v=0.15){if(!soundOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
  const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;
  g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+d);
  o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);}catch(e){}}
-function cheer(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+function cheer(){if(!soundOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
  const len=AC.sampleRate*0.8,buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
  const s=AC.createBufferSource(),g=AC.createGain();s.buffer=buf;g.gain.value=0.25;
  s.connect(g);g.connect(AC.destination);s.start();}catch(e){}}
 function crack(){beep(180,0.12,'square',0.2);beep(90,0.15,'triangle',0.2);}
 function sadTrombone(){beep(220,0.4,'sawtooth',0.12);setTimeout(()=>beep(175,0.5,'sawtooth',0.12),350);}
+function speak(t){if(!soundOn||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(t);u.rate=1.05;const vs=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.startsWith('en'));if(vs)u.voice=vs;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function commentate(res){if(!res)return;if(res.out)speak('Wicket! '+res.how+'! The crowd goes wild!');else if(res.runs===4)speak('What a shot! Four runs!');else if(res.runs===6)speak('Huge six! That has gone all the way!');else if(res.runs>0)speak(res.runs+' runs. Good running between the wickets.');else speak('Dot ball. Good bowling.');}
+function toggleSound(){soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in window))speechSynthesis.cancel();if(soundOn)unlockAudio();const b=$('btn-sound');if(b)b.textContent=soundOn?'🔊 Voice: ON':'🔇 Voice: OFF';}
 
 // ===== State =====
 let userTeam=null, oppTeam=null, overs=5, tossWinner=null, userBatsFirst=null;
@@ -132,7 +137,7 @@ function updatePlayBtn(){
 document.querySelectorAll('#overs-row .pill').forEach(p=>p.onclick=()=>{
  document.querySelectorAll('#overs-row .pill').forEach(x=>x.classList.remove('active'));
  p.classList.add('active');overs=+p.dataset.overs;});
-$('btn-play').onclick=()=>{
+$('btn-play').onclick=()=>{unlockAudio();
  $('toss-matchup').textContent=`${userTeam.name} vs ${oppTeam.name} • ${overs} overs`;
  $('toss-result').textContent='';$('toss-choice').classList.add('hidden');
  $('toss-ai-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');
@@ -149,7 +154,7 @@ document.querySelectorAll('.toss-call').forEach(b=>b.onclick=()=>{
    $('btn-start-match').classList.remove('hidden');}});
 $('choose-bat').onclick=()=>{userBatsFirst=true;$('btn-start-match').classList.remove('hidden');};
 $('choose-bowl').onclick=()=>{userBatsFirst=false;$('btn-start-match').classList.remove('hidden');};
-$('btn-start-match').onclick=()=>{startMatch();};
+$('btn-start-match').onclick=()=>{unlockAudio();startMatch();};
 
 // ===== Match engine =====
 function attackOf(team){return [...team.players].filter(p=>p.bowl>=40).sort((a,b)=>b.bowl-a.bowl).slice(0,5);}
@@ -235,6 +240,7 @@ function applyBall(res,extraRuns,extraLabel){
    inn.wkts++;b.wkts++;s.out=true;s.howOut=res.how+` (b ${b.p.n})`;
    inn.fow.push(`${inn.score}/${inn.wkts} — ${s.p.n}`);
    say(`☝️ WICKET! ${s.p.n} ${res.how} by ${b.p.n}. ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
+   commentate({out:true,how:res.how});
    sadTrombone();bigText('WICKET! ☝️');
    if(inn.wkts>=10||inn.nextIdx>=11){/* all out handled below */ }
    else{inn.striker=inn.nextIdx++; }
@@ -244,6 +250,7 @@ function applyBall(res,extraRuns,extraLabel){
    else if(res.runs===6){s.sixes++;crack();cheer();bigText('SIX! 🚀');}
    else if(res.runs>0)crack();
    say(`🎳 ${b.p.n} to ${s.p.n}: ${outcomeText(res.runs,false)} ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
+   commentate({out:false,runs:res.runs});
    if(res.runs%2===1){const t=inn.striker;inn.striker=inn.nonStriker;inn.nonStriker=t;}
  }
  if(inn.overBalls>=6){inn.overBalls=0;
@@ -372,9 +379,9 @@ function finishSeq(){
    }
  }
  if(!checkInningsEnd())nextBallPrompt();}
-$('btn-bowl-ball').onclick=()=>{startBattingSeq();};
-$('btn-bowl-delivery').onclick=()=>{startBowlingSeq();};
-$('btn-hit').onclick=()=>{
+$('btn-bowl-ball').onclick=()=>{unlockAudio();startBattingSeq();};
+$('btn-bowl-delivery').onclick=()=>{unlockAudio();startBowlingSeq();};
+$('btn-hit').onclick=()=>{unlockAudio();
  if(!ballBusy||!anim||anim.phase==='result'||hitTiming!==null)return;
  const left=parseFloat($('timing-needle').style.left)||0;
  hitTiming=left;$('btn-hit').classList.add('hidden');
@@ -395,7 +402,7 @@ function endMatch(){
  $('result-title').textContent=title;$('result-margin').textContent=margin;
  $('result-scores').innerHTML=`${i1.batTeam.name}: ${i1.score}/${i1.wkts} (${fmtOvers(i1.balls)})<br>${i2.batTeam.name}: ${i2.score}/${i2.wkts} (${fmtOvers(i2.balls)})`;
  $('result-mom').textContent=mom?`⭐ Man of the Match: ${mom.p.n} — ${mom.runs} runs`:'';
- cheer();showScreen('screen-result');}
+ cheer();speak((title.replace(/[^a-zA-Z0-9 ]/g,'')+'. '+margin));showScreen('screen-result');}
 $('btn-rematch').onclick=()=>{startMatch();};
 $('btn-new-teams').onclick=()=>{userTeam=null;oppTeam=null;renderTeams();updatePlayBtn();showScreen('screen-home');};
 
@@ -403,15 +410,22 @@ $('btn-new-teams').onclick=()=>{userTeam=null;oppTeam=null;renderTeams();updateP
 const CROWD=[];
 for(let i=0;i<140;i++)CROWD.push([20+Math.random()*680,6+Math.random()*22,['#e11d48','#f59e0b','#3b82f6','#ffffff','#22c55e','#a855f7'][i%6]]);
 
+const KITPAT={IND:'shoulder',NZ:'band',SA:'band',PAK:'band',AUS:'shoulder',SL:'stripes',AFG:'band',ENG:'stripes',BAN:'band',WI:'shoulder',ZIM:'band',IRE:'shoulder',SCO:'stripes',NED:'band',USA:'stripes'};
+function kitFor(t){return {kit:t.color,accent:t.color2,pattern:KITPAT[t.id]||'band',pants:t.color};}
 function drawFigure(c,o){
   const s=o.s||1, x=o.x, y=o.y-(o.jump||0);
   c.fillStyle='rgba(0,0,0,0.28)';c.beginPath();c.ellipse(x,y+2,14*s,4*s,0,0,Math.PI*2);c.fill();
   const lp=(o.leg===null||o.leg===undefined)?0:Math.sin(o.leg)*0.7;
-  c.strokeStyle=o.pads?'#f5f5f5':'#1f2937';c.lineWidth=5*s;c.lineCap='round';
+  c.strokeStyle=o.pants||(o.pads?'#f5f5f5':'#1f2937');c.lineWidth=5*s;c.lineCap='round';
   c.beginPath();c.moveTo(x,y-22*s);c.lineTo(x-6*s+lp*6*s,y);c.stroke();
   c.beginPath();c.moveTo(x,y-22*s);c.lineTo(x+6*s-lp*6*s,y);c.stroke();
   if(o.pads){c.fillStyle='#f8f8f8';c.fillRect(x-9*s,y-24*s,7*s,22*s);c.fillRect(x+2*s,y-24*s,7*s,22*s);}
-  c.fillStyle=o.kit;c.beginPath();c.roundRect(x-11*s,y-52*s,22*s,32*s,6);c.fill();
+  if(o.pattern==='gradient'){const g=c.createLinearGradient(x-11*s,y-52*s,x+11*s,y-20*s);g.addColorStop(0,o.kit);g.addColorStop(1,o.accent||o.kit);c.fillStyle=g;}else c.fillStyle=o.kit;
+  c.beginPath();c.roundRect(x-11*s,y-52*s,22*s,32*s,6);c.fill();
+  if(o.accent){c.fillStyle=o.accent;
+    if(o.pattern==='band')c.fillRect(x-11*s,y-40*s,22*s,8*s);
+    else if(o.pattern==='shoulder'){c.fillRect(x-11*s,y-52*s,8*s,10*s);c.fillRect(x+3*s,y-52*s,8*s,10*s);}
+    else if(o.pattern==='stripes')c.fillRect(x-3*s,y-52*s,6*s,32*s);}
   c.fillStyle='rgba(255,255,255,0.28)';c.fillRect(x-11*s,y-52*s,22*s,4*s);
   c.strokeStyle=o.kit;c.lineWidth=4.5*s;
   if(o.arm!==null&&o.arm!==undefined){
@@ -489,10 +503,13 @@ function drawFrame(now){
   const cv=$('field');if(!cv)return;const c=cv.getContext('2d');
   const inn=M&&M.innings?M.innings[M.inn-1]:null;
   const batCol=inn?inn.batTeam.color:'#1e5aff', bowlCol=inn?inn.bowlTeam.color:'#cc0000';
+  const batKit=inn?kitFor(inn.batTeam):{kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,accent:'#ffffff',pattern:'band',pants:batCol};
+  const bowlKit=inn?kitFor(inn.bowlTeam):{kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,accent:'#ffffff',pattern:'band',pants:bowlCol};
   const ocR=(anim&&anim.phase==='result')?resultOutcome():null;
   const qR=(anim&&anim.phase==='result')?Math.min(1,(now-anim.t0)/1400):0;
   // ---- camera (broadcast feel): pan+zoom on boundaries, shake on wicket ----
   c.save();
+  if(anim&&anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/900);c.translate(360,320);c.scale(1+0.10*p,1+0.10*p);c.translate(-360,-320);}
   if(anim&&anim.phase==='result'&&ocR){
     if(ocR.runs===4||ocR.runs===6){
       const dir=anim.boundaryPt[0]<360?-1:1;
@@ -542,10 +559,10 @@ function drawFrame(now){
       if(ocR.out&&ocR.how==='caught'&&anim.catchFielder===f&&qR>0.5)jump=8*Math.sin((qR-0.5)/0.5*Math.PI);
     }
     const s=0.7+(fy/400)*0.35;
-    drawFigure(c,{x:fx,y:fy,s:s,kit:bowlCol,skin:'#c68642',cap:true,leg:0,jump:jump});
+    drawFigure(c,{x:fx,y:fy,s:s,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#c68642',cap:true,leg:0,jump:jump});
   });
   // keeper
-  drawFigure(c,{x:360,y:356,s:1.0,kit:bowlCol,skin:'#8d5524',cap:true,leg:0});
+  drawFigure(c,{x:360,y:356,s:1.2,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#8d5524',cap:true,leg:0});
   // batsmen positions (running between wickets during result)
   let batY=320, nsY=140;
   if(anim&&anim.phase==='result'&&ocR&&!ocR.out&&ocR.runs>=1&&ocR.runs<=3){
@@ -555,7 +572,7 @@ function drawFrame(now){
   }
   const batRec=inn?inn.batsmen[inn.striker]:null, nsRec=inn?inn.batsmen[inn.nonStriker]:null;
   // non-striker (top end)
-  drawFigure(c,{x:360,y:nsY,s:0.7+(nsY/400)*0.35,kit:batCol,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
+  drawFigure(c,{x:360,y:nsY,s:0.85+(nsY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
   // striker batsman + bat swing
   let batAngle=-0.5;
   if(anim&&anim.swingT){
@@ -564,7 +581,7 @@ function drawFrame(now){
     const mag={defend:0.7,normal:1,attack:1.2,loft:1.4}[magSrc||'normal'];
     batAngle=-0.5-(1-Math.pow(1-sp,2))*1.9*mag;
   }
-  drawFigure(c,{x:360,y:batY,s:0.7+(batY/400)*0.35,kit:batCol,skin:batRec?skinFor(batRec.p.n):'#ffdbac',helmet:true,pads:true,bat:batAngle,leg:0});
+  drawFigure(c,{x:360,y:batY,s:0.85+(batY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:batRec?skinFor(batRec.p.n):'#ffdbac',helmet:true,pads:true,bat:batAngle,leg:0});
   // bowler
   let bowY=115, bowLeg=0, bowArm=null, bowBall=false;
   if(anim){
@@ -573,7 +590,7 @@ function drawFrame(now){
     else bowArm=0.9;
   }
   const bowlRec=inn?curBowler():null;
-  drawFigure(c,{x:360,y:bowY,s:0.7+(bowY/400)*0.35,kit:bowlCol,skin:bowlRec?skinFor(bowlRec.p.n):'#ffdbac',cap:true,leg:bowLeg,arm:bowArm,ball:bowBall});
+  drawFigure(c,{x:360,y:bowY,s:0.85+(bowY/400)*0.5,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:bowlRec?skinFor(bowlRec.p.n):'#ffdbac',cap:true,leg:bowLeg,arm:bowArm,ball:bowBall});
   // ball
   const bp=ballXY(now);
   if(bp){
