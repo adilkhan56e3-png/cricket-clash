@@ -268,7 +268,7 @@ function applyBall(res,extraRuns,extraLabel){
    else howTxt=res.how;
    s.howOut=howTxt;
    inn.fow.push(`${inn.score}/${inn.wkts} — ${s.p.n} (${fmtOvers(inn.balls)} ov)`);
-   say(`☝️ WICKET! ${s.p.n} ${res.how} by ${b.p.n}. ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
+   say(`☝️ WICKET! ${s.p.n} ${howTxt}. ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
    commentate({out:true,how:res.how});
    sadTrombone();bigText('WICKET! ☝️');
    if(inn.wkts>=10||inn.nextIdx>=11){/* all out handled below */ }
@@ -607,7 +607,7 @@ function drawFrame(now){
     drawFigure(c,{x:fx,y:fy,s:s,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#c68642',cap:true,leg:0,jump:jump});
   });
   // keeper
-  drawFigure(c,{x:360,y:50,s:0.7,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#8d5524',cap:true,leg:0});
+  drawFigure(c,{x:360,y:46,s:0.6,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#8d5524',cap:true,leg:0});
   // batsmen positions (running between wickets during result)
   let batY=320, nsY=140;
   if(anim&&anim.phase==='result'&&ocR&&!ocR.out&&ocR.runs>=1&&ocR.runs<=3){
@@ -619,8 +619,8 @@ function drawFrame(now){
   const batScrY=400-batY, nsScrY=400-nsY;
   const batSprH=60+batScrY*0.20, nsSprH=60+nsScrY*0.20;
   // non-striker (top end) — realistic sprite, code figure fallback
-  if(!drawSprite(c,sprBatStance,360,nsScrY,nsSprH))
-    drawFigure(c,{x:360,y:nsScrY,s:0.85+(nsScrY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
+  if(!drawSprite(c,sprBatStance,300,nsScrY,nsSprH))
+    drawFigure(c,{x:300,y:nsScrY,s:0.85+(nsScrY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
   // striker batsman — realistic sprite, swing crossfades stance -> swing
   let batAngle=-0.5, swung=false;
   if(anim&&anim.swingT){
