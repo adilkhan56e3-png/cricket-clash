@@ -481,32 +481,49 @@ function ballXY(now){
   if(oc.runs===4)return {x:360+(anim.boundaryPt[0]-360)*q,y:315+(anim.boundaryPt[1]-315)*q,r:7};
   const f=anim.fieldFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:7};
 }
+const grassImg=new Image();grassImg.src='grass.jpg';
+const crowdImg=new Image();crowdImg.src='crowd.jpg';
+function pitchHalfW(y){return (44+(96-44)*(y-40)/330)/2;}
 function drawFrame(now){
   now=now||performance.now();
   const cv=$('field');if(!cv)return;const c=cv.getContext('2d');
   const inn=M&&M.innings?M.innings[M.inn-1]:null;
   const batCol=inn?inn.batTeam.color:'#1e5aff', bowlCol=inn?inn.bowlTeam.color:'#cc0000';
-  // stands + crowd
-  c.fillStyle='#0f2a1d';c.fillRect(0,0,720,36);
-  CROWD.forEach(d=>{c.fillStyle=d[2];c.beginPath();c.arc(d[0],d[1],2.5,0,Math.PI*2);c.fill();});
-  [[70],[650]].forEach(f=>{
-    c.fillStyle='#94a3b8';c.fillRect(f[0]-2,0,4,30);
-    c.fillStyle='#fef08a';c.fillRect(f[0]-12,0,24,8);
-    c.fillStyle='rgba(254,240,138,0.08)';c.beginPath();
-    c.moveTo(f[0]-12,8);c.lineTo(f[0]-40,130);c.lineTo(f[0]+40,130);c.closePath();c.fill();});
-  // outfield
-  const g=c.createLinearGradient(0,36,0,400);g.addColorStop(0,'#3d8b4f');g.addColorStop(1,'#2a6e38');
-  c.fillStyle=g;c.fillRect(0,36,720,364);
-  c.fillStyle='rgba(255,255,255,0.04)';
-  for(let y=40;y<400;y+=44)c.fillRect(0,y,720,22);
+  const ocR=(anim&&anim.phase==='result')?resultOutcome():null;
+  const qR=(anim&&anim.phase==='result')?Math.min(1,(now-anim.t0)/1400):0;
+  // ---- camera (broadcast feel): pan+zoom on boundaries, shake on wicket ----
+  c.save();
+  if(anim&&anim.phase==='result'&&ocR){
+    if(ocR.runs===4||ocR.runs===6){
+      const dir=anim.boundaryPt[0]<360?-1:1;
+      c.translate(360,215);c.scale(1+0.08*qR,1+0.08*qR);c.translate(-360+dir*qR*25,-215);
+    } else if(ocR.out&&qR<0.2){
+      c.translate((Math.random()*6-3),(Math.random()*6-3));
+    }
+  }
+  // ---- real ground texture ----
+  if(grassImg.complete&&grassImg.naturalWidth>0){c.drawImage(grassImg,-40,0,800,400);}
+  else{
+    const g=c.createLinearGradient(0,36,0,400);g.addColorStop(0,'#3d8b4f');g.addColorStop(1,'#2a6e38');
+    c.fillStyle=g;c.fillRect(-40,0,800,400);
+  }
+  // ---- real stadium crowd strip ----
+  if(crowdImg.complete&&crowdImg.naturalWidth>0){c.drawImage(crowdImg,-40,0,800,36);}
+  else{
+    c.fillStyle='#0f2a1d';c.fillRect(-40,0,800,36);
+    CROWD.forEach(d=>{c.fillStyle=d[2];c.beginPath();c.arc(d[0],d[1],2.5,0,Math.PI*2);c.fill();});
+  }
   // boundary
   c.strokeStyle='#e8f5e9';c.lineWidth=3;c.beginPath();c.ellipse(360,215,335,178,0,0,Math.PI*2);c.stroke();
-  // pitch
-  c.fillStyle='#d9c49a';c.fillRect(330,40,60,330);
-  c.fillStyle='rgba(0,0,0,0.05)';c.fillRect(330,40,60,330);
+  // ---- perspective pitch (wide near camera, narrow far away) ----
+  c.fillStyle='#d9c49a';
+  c.beginPath();c.moveTo(338,40);c.lineTo(382,40);c.lineTo(408,370);c.lineTo(312,370);c.closePath();c.fill();
+  c.fillStyle='rgba(0,0,0,0.06)';
+  c.beginPath();c.ellipse(360,200,20,60,0,0,Math.PI*2);c.fill();
+  c.beginPath();c.ellipse(360,300,26,30,0,0,Math.PI*2);c.fill();
   c.strokeStyle='#ffffff';c.lineWidth=2;
-  c.beginPath();c.moveTo(330,72);c.lineTo(390,72);c.stroke();
-  c.beginPath();c.moveTo(330,330);c.lineTo(390,330);c.stroke();
+  c.beginPath();c.moveTo(360-pitchHalfW(72),72);c.lineTo(360+pitchHalfW(72),72);c.stroke();
+  c.beginPath();c.moveTo(360-pitchHalfW(330),330);c.lineTo(360+pitchHalfW(330),330);c.stroke();
   // stumps
   let broken=false;
   if(anim&&anim.phase==='result'){
@@ -515,9 +532,6 @@ function drawFrame(now){
   }
   drawStumpsAt(c,360,58,0.8,false);
   drawStumpsAt(c,360,336,1.1,broken);
-  // result helpers
-  const ocR=(anim&&anim.phase==='result')?resultOutcome():null;
-  const qR=(anim&&anim.phase==='result')?Math.min(1,(now-anim.t0)/1400):0;
   // fielders
   FIELDERS.forEach(f=>{
     let fx=f[0], fy=f[1], jump=0;
@@ -567,7 +581,8 @@ function drawFrame(now){
     c.fillStyle='#ff1744';c.beginPath();c.arc(bp.x,bp.y,bp.r,0,Math.PI*2);c.fill();
     c.fillStyle='#ffffff';c.beginPath();c.arc(bp.x-bp.r*0.3,bp.y-bp.r*0.3,bp.r*0.3,0,Math.PI*2);c.fill();
   }
-  // labels
+  c.restore();
+  // labels (fixed, outside camera move)
   c.fillStyle='#ffffff';c.font='bold 15px system-ui';c.textAlign='left';
   if(inn){c.fillText(inn.bowlTeam.name,16,54);c.fillText(inn.batTeam.name,16,392);}
   c.font='13px system-ui';c.fillStyle='#e8f5e9';c.textAlign='right';
@@ -575,6 +590,7 @@ function drawFrame(now){
   if(inn&&batRec)c.fillText('🏏 '+batRec.p.n,704,392);
   c.textAlign='left';
 }
+
 function drawScene(){drawFrame();}
 
 // ===== Init =====
