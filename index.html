@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cricket Clash — World Cricket Game</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME / TEAM SELECT -->
+  <section id="screen-home" class="screen active">
+    <h1 class="logo">🏏 CRICKET CLASH</h1>
+    <p class="tagline">World's Top 15 Teams • Real Current Players • Playable Matches</p>
+
+    <h2>1. Choose YOUR team</h2>
+    <div id="team-grid" class="team-grid"></div>
+
+    <h2>2. Choose OPPONENT</h2>
+    <div id="opp-grid" class="team-grid"></div>
+
+    <h2>3. Match length</h2>
+    <div class="pill-row" id="overs-row">
+      <button class="pill active" data-overs="5">5 Overs</button>
+      <button class="pill" data-overs="10">10 Overs</button>
+      <button class="pill" data-overs="20">20 Overs</button>
+    </div>
+
+    <button id="btn-play" class="btn-big" disabled>Select both teams to continue</button>
+    <p class="fineprint">Player faces are stylized cartoon avatars, not real photos. Squads reflect recent current selections.</p>
+  </section>
+
+  <!-- TOSS -->
+  <section id="screen-toss" class="screen">
+    <h1 class="logo">🏏 TOSS TIME</h1>
+    <div class="toss-card">
+      <p id="toss-matchup" class="matchup"></p>
+      <p>Call the toss:</p>
+      <div class="pill-row">
+        <button class="pill toss-call" data-call="heads">Heads</button>
+        <button class="pill toss-call" data-call="tails">Tails</button>
+      </div>
+      <p id="toss-result" class="toss-result"></p>
+      <div id="toss-choice" class="hidden">
+        <p>You won the toss! Choose:</p>
+        <div class="pill-row">
+          <button class="pill" id="choose-bat">🏏 Bat First</button>
+          <button class="pill" id="choose-bowl">🎯 Bowl First</button>
+        </div>
+      </div>
+      <p id="toss-ai-choice" class="hidden"></p>
+      <button id="btn-start-match" class="btn-big hidden">Start Match →</button>
+    </div>
+  </section>
+
+  <!-- MATCH -->
+  <section id="screen-match" class="screen">
+    <div class="scorebug">
+      <div class="sb-teams"><span id="sb-bat-team"></span> <b id="sb-score"></b> <span id="sb-vs"></span></div>
+      <div class="sb-meta"><span id="sb-overs"></span> • <span id="sb-rr"></span> • <span id="sb-target"></span></div>
+      <div class="sb-batsmen"><span id="sb-striker"></span> | <span id="sb-nonstriker"></span></div>
+      <div class="sb-bowler"><span id="sb-bowler"></span></div>
+    </div>
+
+    <div class="field-wrap">
+      <canvas id="field" width="720" height="400"></canvas>
+      <div id="big-text" class="big-text hidden"></div>
+    </div>
+
+    <div id="timing-box" class="timing-box hidden">
+      <div class="timing-label">Tap HIT at the right moment!</div>
+      <div class="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
+    </div>
+
+    <!-- Batting controls -->
+    <div id="bat-controls" class="controls hidden">
+      <p class="ctrl-title">Choose your shot, then tap BOWL — hit the ball at the perfect moment!</p>
+      <div class="pill-row shot-row">
+        <button class="pill shot active" data-shot="defend">🛡️ Defend</button>
+        <button class="pill shot" data-shot="normal">🏏 Drive</button>
+        <button class="pill shot" data-shot="attack">💥 Attack</button>
+        <button class="pill shot" data-shot="loft">🚀 Lofted</button>
+      </div>
+      <button id="btn-bowl-ball" class="btn-big">🎳 Bowl the Ball</button>
+      <button id="btn-hit" class="btn-hit hidden">🏏 HIT!</button>
+    </div>
+
+    <!-- Bowling controls -->
+    <div id="bowl-controls" class="controls hidden">
+      <p class="ctrl-title">Pick a delivery and bowl it!</p>
+      <div class="pill-row">
+        <button class="pill delivery active" data-del="fast">⚡ Fast</button>
+        <button class="pill delivery" data-del="yorker">🎯 Yorker</button>
+        <button class="pill delivery" data-del="slower">🐢 Slower Ball</button>
+        <button class="pill delivery" data-del="spin">🌀 Spin / Swing</button>
+      </div>
+      <button id="btn-bowl-delivery" class="btn-big">🎳 Bowl!</button>
+    </div>
+
+    <div class="commentary">
+      <h3>📻 Commentary</h3>
+      <ul id="commentary-list"></ul>
+    </div>
+
+    <details class="scorecard">
+      <summary>📋 Full Scorecard</summary>
+      <div id="scorecard-body"></div>
+    </details>
+  </section>
+
+  <!-- RESULT -->
+  <section id="screen-result" class="screen">
+    <h1 class="logo">🏆 RESULT</h1>
+    <div class="result-card">
+      <p id="result-title" class="result-title"></p>
+      <p id="result-margin" class="result-margin"></p>
+      <div id="result-scores"></div>
+      <p id="result-mom"></p>
+      <div class="pill-row">
+        <button class="pill" id="btn-rematch">🔄 Rematch</button>
+        <button class="pill" id="btn-new-teams">🏏 Change Teams</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>

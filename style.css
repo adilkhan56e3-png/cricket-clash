@@ -1,0 +1,52 @@
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1f16;color:#fff;min-height:100vh}
+#app{max-width:760px;margin:0 auto;padding:16px}
+.screen{display:none}
+.screen.active{display:block}
+.logo{text-align:center;font-size:2rem;margin:12px 0 4px}
+.tagline{text-align:center;color:#bfe8cd;margin-bottom:20px}
+h2{margin:20px 0 10px;font-size:1.1rem}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.team-card{border:2px solid #2a4a38;border-radius:12px;padding:10px;cursor:pointer;background:#12291d;text-align:left;transition:.15s}
+.team-card:hover{border-color:#7ddb9a}
+.team-card.sel{border-color:#ffd700;background:#1e3d28;box-shadow:0 0 0 2px #ffd700 inset}
+.team-card .tc-name{font-weight:700;font-size:.95rem}
+.team-card .tc-rank{font-size:.75rem;color:#9fc7ac}
+.team-card .tc-stars{font-size:.8rem;color:#ffd700}
+.team-card .tc-swatch{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-right:6px;border:1px solid #ffffff55}
+.pill-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.pill{border:2px solid #2a4a38;background:#12291d;color:#fff;padding:9px 14px;border-radius:999px;cursor:pointer;font-size:.95rem}
+.pill.active{border-color:#ffd700;background:#1e3d28}
+.btn-big{display:block;width:100%;padding:14px;background:#16a34a;color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:700;cursor:pointer;margin:14px 0}
+.btn-big:disabled{background:#33503f;color:#9fb5a6;cursor:not-allowed}
+.btn-hit{display:block;width:100%;padding:18px;background:#dc2626;color:#fff;border:none;border-radius:12px;font-size:1.4rem;font-weight:800;cursor:pointer;margin:14px 0}
+.fineprint{font-size:.8rem;color:#8fb59d;text-align:center;margin-top:14px}
+.hidden{display:none!important}
+.toss-card{background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:20px;text-align:center}
+.matchup{font-size:1.2rem;font-weight:700;margin-bottom:14px}
+.toss-result{font-size:1.1rem;margin:14px 0;color:#ffd700;font-weight:700}
+.scorebug{background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:12px;margin-bottom:10px}
+.sb-teams{font-size:1.15rem}
+.sb-meta,.sb-batsmen,.sb-bowler{font-size:.9rem;color:#bfe8cd;margin-top:4px}
+.field-wrap{position:relative}
+#field{width:100%;height:auto;display:block;border-radius:14px;background:#2f7a3d}
+.big-text{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:3rem;font-weight:900;color:#ffd700;text-shadow:0 3px 0 #000,0 0 24px #000;pointer-events:none}
+.timing-box{background:#12291d;border:2px solid #ffd700;border-radius:12px;padding:10px;margin:10px 0}
+.timing-label{text-align:center;margin-bottom:6px;font-weight:700}
+.timing-bar{position:relative;height:22px;background:#334155;border-radius:11px;overflow:hidden}
+.zone-good{position:absolute;left:30%;width:40%;height:100%;background:#16a34a66}
+.zone-perfect{position:absolute;left:45%;width:10%;height:100%;background:#ffd700}
+#timing-needle{position:absolute;top:0;width:4px;height:100%;background:#fff;left:0%}
+.controls{background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:12px;margin-top:10px}
+.ctrl-title{text-align:center;margin-bottom:6px;color:#bfe8cd}
+.commentary{background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:12px;margin-top:12px}
+.commentary h3{margin-bottom:6px}
+.commentary ul{list-style:none}
+.commentary li{padding:5px 0;border-bottom:1px solid #223f31;font-size:.92rem}
+.commentary li:last-child{border-bottom:none}
+.scorecard{margin-top:12px;background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:12px}
+.scorecard summary{cursor:pointer;font-weight:700}
+.result-card{background:#12291d;border:2px solid #ffd700;border-radius:14px;padding:20px;text-align:center}
+.result-title{font-size:1.5rem;font-weight:800;margin-bottom:8px}
+.result-margin{font-size:1.1rem;color:#ffd700;margin-bottom:12px}
+@media(max-width:480px){.logo{font-size:1.5rem}.big-text{font-size:2rem}}
