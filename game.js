@@ -160,10 +160,10 @@ $('btn-start-match').onclick=()=>{unlockAudio();startMatch();};
 function attackOf(team){return [...team.players].filter(p=>p.bowl>=40).sort((a,b)=>b.bowl-a.bowl).slice(0,5);}
 function newInnings(batTeam,bowlTeam,target){
  const atk=attackOf(bowlTeam);
- return {batTeam,bowlTeam,target,score:0,wkts:0,balls:0,
+ return {batTeam,bowlTeam,target,score:0,wkts:0,balls:0,extras:{runs:0,wides:0,noballs:0},
   batsmen:batTeam.players.map(p=>({p,runs:0,balls:0,fours:0,sixes:0,out:false,howOut:''})),
   striker:0,nonStriker:1,nextIdx:2,
-  bowlers:atk.map(p=>({p,balls:0,runs:0,wkts:0})),
+  bowlers:atk.map(p=>({p,balls:0,runs:0,wkts:0,maidens:0,overStartRuns:0})),
   bowlerIdx:0,overBalls:0,prevBowler:-1,fow:[],commentary:[],done:false};}
 function curBowler(){const inn=M.innings[M.inn-1];return inn.bowlers[inn.bowlerIdx];}
 function strikerRec(){const inn=M.innings[M.inn-1];return inn.batsmen[inn.striker];}
@@ -195,13 +195,26 @@ function renderAll(){
  $('bowl-controls').classList.toggle('hidden',userBatting||inn.done);
  renderScorecard();}
 function renderScorecard(){
- const inn=M.innings[M.inn-1];let h=`<b>${inn.batTeam.name} — ${inn.score}/${inn.wkts} (${fmtOvers(inn.balls)} ov)</b><br>`;
- inn.batsmen.forEach((b,i)=>{
-   if(i>inn.nextIdx-1&&!b.out&&i!==inn.striker&&i!==inn.nonStriker)return;
-   if(b.balls===0&&!b.out&&i!==inn.striker&&i!==inn.nonStriker)return;
-   h+=`${b.p.n} ${b.out?b.howOut:'not out'} — ${b.runs} (${b.balls}) 4s:${b.fours} 6s:${b.sixes}<br>`;});
- h+='<br><b>Bowling</b><br>';
- inn.bowlers.forEach(b=>{if(b.balls>0)h+=`${b.p.n} ${fmtOvers(b.balls)}-${b.runs}-${b.wkts}<br>`;});
+ if(!M)return;
+ let h='<h3 style="margin:8px 0 4px">📋 Full Scorecard</h3>';
+ M.innings.forEach((inn)=>{
+   const sr=b=>b.balls>0?(b.runs/b.balls*100).toFixed(1):'—';
+   const ec=b=>b.balls>0?(b.runs/(b.balls/6)).toFixed(2):'—';
+   h+=`<div style="margin:10px 0"><b>${inn.batTeam.name} — ${inn.score}/${inn.wkts} (${fmtOvers(inn.balls)} ov)</b>${inn.target?` • Target ${inn.target}`:''}<br>`;
+   h+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th style="text-align:left">Batter</th><th style="text-align:left"></th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr>';
+   let dnb=[];
+   inn.batsmen.forEach((b,i)=>{
+     const atCrease=(i===inn.striker||i===inn.nonStriker);
+     if(!b.out&&b.balls===0&&!atCrease){dnb.push(b.p.n);return;}
+     h+=`<tr><td>${b.p.n}${(!b.out&&atCrease)?'*':''}</td><td style="opacity:.75">${b.out?b.howOut:'not out'}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${sr(b)}</td></tr>`;});
+   h+='</table>';
+   const ex=inn.extras||{runs:0,wides:0,noballs:0};
+   h+=`<div>Extras: ${ex.runs}${(ex.wides||ex.noballs)?` (${ex.wides} wd, ${ex.noballs} nb)`:''}</div>`;
+   if(dnb.length)h+=`<div>Did not bat: ${dnb.join(', ')}</div>`;
+   if(inn.fow.length)h+=`<div>Fall of wickets: ${inn.fow.join(', ')}</div>`;
+   h+='<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px"><tr><th style="text-align:left">Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr>';
+   inn.bowlers.forEach(b=>{if(b.balls>0)h+=`<tr><td>${b.p.n}</td><td>${fmtOvers(b.balls)}</td><td>${b.maidens||0}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${ec(b)}</td></tr>`;});
+   h+='</table></div>';});
  $('scorecard-body').innerHTML=h;}
 function nextBallPrompt(){renderAll();drawScene(0);}
 function bigText(t,ms=1200){const el=$('big-text');el.textContent=t;el.classList.remove('hidden');
@@ -233,12 +246,22 @@ function battingOutcome(shotType,timing,bat,bowl){
  return {runs:+k,out:false,how:''};}
 function applyBall(res,extraRuns,extraLabel){
  const inn=M.innings[M.inn-1],b=curBowler(),s=strikerRec();
- if(extraLabel){inn.score+=extraRuns;b.runs+=extraRuns;say(`⚠️ ${extraLabel} — +${extraRuns} run.`);renderAll();return 'extra';}
+ if(extraLabel){inn.score+=extraRuns;b.runs+=extraRuns;
+   inn.extras.runs+=extraRuns;
+   if(extraLabel.toLowerCase().includes('wide'))inn.extras.wides++;else inn.extras.noballs++;
+   say(`⚠️ ${extraLabel} — +${extraRuns} run.`);renderAll();return 'extra';}
  inn.balls++;b.balls++;inn.overBalls++;
  s.balls++;
  if(res.out){
-   inn.wkts++;b.wkts++;s.out=true;s.howOut=res.how+` (b ${b.p.n})`;
-   inn.fow.push(`${inn.score}/${inn.wkts} — ${s.p.n}`);
+   inn.wkts++;b.wkts++;s.out=true;
+   let howTxt='';
+   if(res.how==='bowled')howTxt=`b ${b.p.n}`;
+   else if(res.how==='LBW')howTxt=`lbw b ${b.p.n}`;
+   else if(res.how==='run out')howTxt=`run out`;
+   else if(res.how==='caught'){const opts=inn.bowlTeam.players.filter(pp=>pp!==b.p);const cf=opts[Math.floor(Math.random()*opts.length)];howTxt=`c ${cf.n} b ${b.p.n}`;}
+   else howTxt=res.how;
+   s.howOut=howTxt;
+   inn.fow.push(`${inn.score}/${inn.wkts} — ${s.p.n} (${fmtOvers(inn.balls)} ov)`);
    say(`☝️ WICKET! ${s.p.n} ${res.how} by ${b.p.n}. ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
    commentate({out:true,how:res.how});
    sadTrombone();bigText('WICKET! ☝️');
@@ -254,9 +277,11 @@ function applyBall(res,extraRuns,extraLabel){
    if(res.runs%2===1){const t=inn.striker;inn.striker=inn.nonStriker;inn.nonStriker=t;}
  }
  if(inn.overBalls>=6){inn.overBalls=0;
+   if(b.runs-(b.overStartRuns||0)===0)b.maidens=(b.maidens||0)+1;
    const t=inn.striker;inn.striker=inn.nonStriker;inn.nonStriker=t;
    inn.prevBowler=inn.bowlerIdx;
-   do{inn.bowlerIdx=(inn.bowlerIdx+1)%inn.bowlers.length;}while(inn.bowlerIdx===inn.prevBowler&&inn.bowlers.length>1);}
+   do{inn.bowlerIdx=(inn.bowlerIdx+1)%inn.bowlers.length;}while(inn.bowlerIdx===inn.prevBowler&&inn.bowlers.length>1);
+   inn.bowlers[inn.bowlerIdx].overStartRuns=inn.bowlers[inn.bowlerIdx].runs;}
  renderAll();return 'ok';}
 function checkInningsEnd(){
  const inn=M.innings[M.inn-1];
@@ -496,6 +521,14 @@ function ballXY(now){
   const f=anim.fieldFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:10};
 }
 const grassImg=new Image();grassImg.src='grass.jpg';
+const sprBatStance=new Image();sprBatStance.src='bat-stance.png';
+const sprBatSwing=new Image();sprBatSwing.src='bat-swing.png';
+const sprBowl=new Image();sprBowl.src='bowl-runup.png';
+function drawSprite(c,img,x,yFeet,h,alpha){
+  if(!img.complete||!img.naturalWidth)return false;
+  const w=h*(img.naturalWidth/img.naturalHeight);
+  c.save();if(alpha!==undefined)c.globalAlpha=alpha;
+  c.drawImage(img,x-w/2,yFeet-h,w,h);c.restore();return true;}
 const crowdImg=new Image();crowdImg.src='crowd.jpg';
 function pitchHalfW(y){return (44+(96-44)*(y-40)/330)/2;}
 function drawFrame(now){
@@ -571,17 +604,26 @@ function drawFrame(now){
     else{batY=140+180*fr;nsY=320-180*fr;}
   }
   const batRec=inn?inn.batsmen[inn.striker]:null, nsRec=inn?inn.batsmen[inn.nonStriker]:null;
-  // non-striker (top end)
-  drawFigure(c,{x:360,y:nsY,s:0.85+(nsY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
-  // striker batsman + bat swing
-  let batAngle=-0.5;
+  // non-striker (top end) — realistic sprite, code figure fallback
+  if(!drawSprite(c,sprBatStance,360,nsY,85))
+    drawFigure(c,{x:360,y:nsY,s:0.85+(nsY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
+  // striker batsman — realistic sprite, swing crossfades stance -> swing
+  let batAngle=-0.5, swung=false;
   if(anim&&anim.swingT){
     const sp=Math.max(0,Math.min(1,(now-anim.swingT)/600));
     const magSrc=anim.kind==='bat'?anim.shot:(anim.pre?anim.pre.agg:'normal');
     const mag={defend:0.7,normal:1,attack:1.2,loft:1.4}[magSrc||'normal'];
     batAngle=-0.5-(1-Math.pow(1-sp,2))*2.3*mag;
+    if(sprBatStance.complete&&sprBatStance.naturalWidth){
+      drawSprite(c,sprBatStance,360,batY,125,1-sp);
+      drawSprite(c,sprBatSwing,360,batY,125,sp);
+      swung=true;
+    }
   }
-  drawFigure(c,{x:360,y:batY,s:0.85+(batY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:batRec?skinFor(batRec.p.n):'#ffdbac',helmet:true,pads:true,bat:batAngle,leg:0});
+  if(!swung){
+    if(!drawSprite(c,sprBatStance,360,batY,125))
+      drawFigure(c,{x:360,y:batY,s:0.85+(batY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:batRec?skinFor(batRec.p.n):'#ffdbac',helmet:true,pads:true,bat:batAngle,leg:0});
+  }
   // bowler
   let bowY=115, bowLeg=0, bowArm=null, bowBall=false;
   if(anim){
@@ -590,7 +632,9 @@ function drawFrame(now){
     else bowArm=0.9;
   }
   const bowlRec=inn?curBowler():null;
-  drawFigure(c,{x:360,y:bowY,s:0.85+(bowY/400)*0.5,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:bowlRec?skinFor(bowlRec.p.n):'#ffdbac',cap:true,leg:bowLeg,arm:bowArm,ball:bowBall});
+  const bowH=70+bowY*0.15;
+  if(!drawSprite(c,sprBowl,360,bowY,bowH))
+    drawFigure(c,{x:360,y:bowY,s:0.85+(bowY/400)*0.5,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:bowlRec?skinFor(bowlRec.p.n):'#ffdbac',cap:true,leg:bowLeg,arm:bowArm,ball:bowBall});
   // ball
   const bp=ballXY(now);
   if(bp){
