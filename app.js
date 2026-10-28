@@ -365,7 +365,7 @@ function deliveryPath(p,bd){
 }
 function onHit(){
   if(phase!=='travel'||!ballData.userBatting||hitDone)return;
-  hitDone=true;hitP=(gameTime-phaseT0)/1.5;
+  hitDone=true;hitP=(gameTime-phaseT0)/1.8;
   lastTiming=hitP>=0.45&&hitP<=0.55?'perfect':(hitP>=0.35&&hitP<=0.65?'good':(hitP<0.35?'early':'late'));
   $('timing-hint').textContent=lastTiming.toUpperCase()+'!';
   $('btn-hit').classList.add('hidden');beep(lastTiming==='perfect'?880:660,0.12);
@@ -506,7 +506,7 @@ function updatePhase(){
     ballGrp.visible=true;ballGrp.position.set(0.35,2.0,-10.8+0.8*p);
     if(p>=1){phase='travel';phaseT0=gameTime;}
   } else if(phase==='travel'){
-    const p=Math.min(1,(gameTime-phaseT0)/1.5);
+    const p=Math.min(1,(gameTime-phaseT0)/1.8);
     ballGrp.visible=true;ballGrp.position.copy(deliveryPath(p,ballData));
     ballGrp.rotation.x+=0.15;
     $('timing-needle').style.left=(p*100)+'%';
@@ -554,6 +554,7 @@ function updatePhase(){
 }
 function resize(){
   const w=wrap.clientWidth,h=wrap.clientHeight||500;
+  if(w<=0)return;
   renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
 }
 window.addEventListener('resize',resize);resize();
@@ -561,6 +562,8 @@ function loop(){
   requestAnimationFrame(loop);
   const dt=Math.min(0.05,clock.getDelta());
   if(!paused)gameTime+=dt;
+  const ww=wrap.clientWidth,hh=wrap.clientHeight||500;
+  if(ww>0&&Math.abs(camera.aspect-ww/hh)>0.001)resize();
   updatePhase();
   // camera smoothing
   let targetPos=camTarget.pos,targetLook=camTarget.look;
