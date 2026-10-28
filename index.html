@@ -58,18 +58,21 @@
 
   <!-- MATCH -->
   <section id="screen-match" class="screen">
-    <div class="scorebug">
-      <div class="sb-teams"><span id="sb-bat-team"></span> <b id="sb-score"></b> <span id="sb-vs"></span></div>
-      <div class="sb-meta"><span id="sb-overs"></span> • <span id="sb-rr"></span> • <span id="sb-target"></span></div>
-      <div class="sb-batsmen"><span id="sb-striker"></span> | <span id="sb-nonstriker"></span></div>
-      <div class="sb-bowler"><span id="sb-bowler"></span></div>
-      <button id="btn-sound" onclick="toggleSound()" style="margin-top:4px">🔊 Voice: ON</button>
-    </div>
-
     <div class="field-wrap">
       <canvas id="field" width="720" height="400"></canvas>
       <div id="big-text" class="big-text hidden"></div>
     </div>
+
+    <div class="scorebug">
+      <div class="sb-left" id="sb-left"><b id="sb-abbr-bat"></b> <b id="sb-score2"></b> <span id="sb-overs2"></span></div>
+      <div class="sb-mid">
+        <span class="sb-face" id="sb-face1"></span><span class="sb-pname"><b id="sb-bat1"></b></span>
+        <span class="sb-face" id="sb-face2"></span><span class="sb-pname"><b id="sb-bat2"></b></span>
+      </div>
+      <div class="sb-mid2"><span class="sb-face" id="sb-bowl-face"></span><span class="sb-pname" id="sb-bowl1"></span></div>
+      <div class="sb-right" id="sb-right"><b id="sb-abbr-bowl"></b></div>
+    </div>
+    <div class="sb-sub"><span id="sb-rr"></span> • <span id="sb-target"></span> <button id="btn-sound" onclick="toggleSound()">🔊 Voice: ON</button></div>
 
     <div id="timing-box" class="timing-box hidden">
       <div class="timing-label">Tap HIT at the right moment!</div>

@@ -28,9 +28,13 @@ h2{margin:20px 0 10px;font-size:1.1rem}
 .toss-card{background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:20px;text-align:center}
 .matchup{font-size:1.2rem;font-weight:700;margin-bottom:14px}
 .toss-result{font-size:1.1rem;margin:14px 0;color:#ffd700;font-weight:700}
-.scorebug{background:#12291d;border:2px solid #2a4a38;border-radius:14px;padding:12px;margin-bottom:10px}
-.sb-teams{font-size:1.15rem}
-.sb-meta,.sb-batsmen,.sb-bowler{font-size:.9rem;color:#bfe8cd;margin-top:4px}
+.scorebug{display:flex;align-items:stretch;border-radius:10px;overflow:hidden;margin-top:10px;background:#0b1f16;border:1px solid #2a4a38}
+.sb-left,.sb-right{display:flex;align-items:center;gap:6px;padding:8px 10px;font-size:1.05rem;color:#fff}
+.sb-right{margin-left:auto}
+.sb-mid,.sb-mid2{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:.85rem}
+.sb-face{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#334155;color:#fff;font-size:.7rem;font-weight:700;flex:none}
+.sb-pname{white-space:nowrap}
+.sb-sub{font-size:.85rem;color:#bfe8cd;margin-top:4px;display:flex;gap:8px;align-items:center}
 .field-wrap{position:relative}
 #field{width:100%;height:auto;display:block;border-radius:14px;background:#2f7a3d}
 .big-text{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:3rem;font-weight:900;color:#ffd700;text-shadow:0 3px 0 #000,0 0 24px #000;pointer-events:none}

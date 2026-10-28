@@ -178,18 +178,24 @@ function startMatch(){
 function renderAll(){
  const inn=M.innings[M.inn-1];M=Object.assign(M,{cur:inn});
  const bat=inn.batTeam,bowl=inn.bowlTeam;
- $('sb-bat-team').textContent=bat.name;
- $('sb-score').textContent=`${inn.score}/${inn.wkts}`;
- $('sb-vs').textContent=`vs ${bowl.name}`;
- $('sb-overs').textContent=`Overs ${fmtOvers(inn.balls)}/${overs}`;
+ const initials=n=>n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+ $('sb-abbr-bat').textContent=bat.id;
+ $('sb-score2').textContent=`${inn.score}/${inn.wkts}`;
+ $('sb-overs2').textContent=`${fmtOvers(inn.balls)} ov`;
+ $('sb-left').style.background=bat.color;
+ $('sb-right').style.background=bowl.color;
+ $('sb-abbr-bowl').textContent=bowl.id;
  const rr=inn.balls?((inn.score/(inn.balls/6))).toFixed(2):'0.00';
  $('sb-rr').textContent=`RR ${rr}`;
  $('sb-target').textContent=inn.target?`Target ${inn.target} • Need ${Math.max(0,inn.target-inn.score)} off ${Math.max(0,overs*6-inn.balls)}`:'';
  const s=inn.batsmen[inn.striker],ns=inn.batsmen[inn.nonStriker];
- $('sb-striker').textContent=s?`${s.p.n}* ${s.runs} (${s.balls})`:'';
- $('sb-nonstriker').textContent=ns?`${ns.p.n} ${ns.runs} (${ns.balls})`:'';
+ $('sb-face1').textContent=s?initials(s.p.n):'';
+ $('sb-bat1').textContent=s?`${s.p.n}* ${s.runs} (${s.balls})`:'';
+ $('sb-face2').textContent=ns?initials(ns.p.n):'';
+ $('sb-bat2').textContent=ns?`${ns.p.n} ${ns.runs} (${ns.balls})`:'';
  const b=curBowler();
- $('sb-bowler').textContent=b?`🎳 ${b.p.n} ${fmtOvers(b.balls)} ov • ${b.runs} runs • ${b.wkts} wkts`:'';
+ $('sb-bowl-face').textContent=b?initials(b.p.n):'';
+ $('sb-bowl1').textContent=b?`${b.p.n} ${b.wkts}-${b.runs} (${fmtOvers(b.balls)})`:'';
  const userBatting=(bat===userTeam);
  $('bat-controls').classList.toggle('hidden',!userBatting||inn.done);
  $('bowl-controls').classList.toggle('hidden',userBatting||inn.done);
@@ -492,33 +498,33 @@ function ballXY(now){
   if(!anim)return null;
   if(anim.phase==='runup'){
     const p=Math.min(1,(now-anim.t0)/1500);
-    return {x:372,y:(25+p*90)-46,r:10};
+    return {x:372,y:329-p*90,r:10};
   }
   if(anim.phase==='deliver'){
     const p=Math.min(1,(now-anim.t0)/450), a=-2.6+p*3.3;
-    return {x:370+Math.cos(a)*16,y:115-41+Math.sin(a)*16,r:10};
+    return {x:370+Math.cos(a)*16,y:244+Math.sin(a)*16,r:10};
   }
   if(anim.phase==='travel'){
     const p=Math.min(1,(now-anim.t0)/1600);
     let x=360+(anim.extra?55*p:0);
-    let y=120+(315-120)*p;
+    let y=280-195*p;
     if(p>0.6&&p<0.72)y-=Math.sin((p-0.6)/0.12*Math.PI)*5;
     return {x,y,r:6+p*5};
   }
   const q=Math.min(1,(now-anim.t0)/2200);
   const oc=resultOutcome();
   const ex=anim.kind==='bat'?anim.extra:anim.pre.extra;
-  if(ex)return {x:360,y:320+q*35,r:10};
-  if(!oc)return {x:360,y:350,r:10};
+  if(ex)return {x:360,y:85-q*35,r:10};
+  if(!oc)return {x:360,y:50,r:10};
   if(oc.out){
-    if(oc.how==='caught'){const f=anim.catchFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:10};}
-    if(oc.how==='bowled'||oc.how==='run out')return {x:360,y:315+q*20,r:10};
-    return {x:360,y:315,r:10};
+    if(oc.how==='caught'){const f=anim.catchFielder;return {x:360+(f[0]-360)*q,y:85+(315-f[1])*q,r:10};}
+    if(oc.how==='bowled'||oc.how==='run out')return {x:360,y:85-q*20,r:10};
+    return {x:360,y:85,r:10};
   }
-  if(oc.runs===0)return {x:360,y:320+q*35,r:10};
-  if(oc.runs===6)return {x:360+(anim.boundaryPt[0]-360)*q*1.4,y:315-q*260,r:10+q*7};
-  if(oc.runs===4)return {x:360+(anim.boundaryPt[0]-360)*q,y:315+(anim.boundaryPt[1]-315)*q,r:10};
-  const f=anim.fieldFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:10};
+  if(oc.runs===0)return {x:360,y:85-q*35,r:10};
+  if(oc.runs===6)return {x:360+(anim.boundaryPt[0]-360)*q*1.4,y:85+q*260,r:10+q*7};
+  if(oc.runs===4)return {x:360+(anim.boundaryPt[0]-360)*q,y:85+(315-anim.boundaryPt[1])*q,r:10};
+  const f=anim.fieldFielder;return {x:360+(f[0]-360)*q,y:85+(315-f[1])*q,r:10};
 }
 const grassImg=new Image();grassImg.src='grass.jpg';
 const sprBatStance=new Image();sprBatStance.src='bat-stance.png';
@@ -540,27 +546,31 @@ function drawFrame(now){
   const bowlKit=inn?kitFor(inn.bowlTeam):{kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,accent:'#ffffff',pattern:'band',pants:bowlCol};
   const ocR=(anim&&anim.phase==='result')?resultOutcome():null;
   const qR=(anim&&anim.phase==='result')?Math.min(1,(now-anim.t0)/2200):0;
-  // ---- camera (broadcast feel): pan+zoom on boundaries, shake on wicket ----
+  // ---- follow-cam: camera tracks the ball wherever it goes ----
   c.save();
-  if(anim&&anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/1600);c.translate(360,320);c.scale(1+0.10*p,1+0.10*p);c.translate(-360,-320);}
-  if(anim&&anim.phase==='result'&&ocR){
-    if(ocR.runs===4||ocR.runs===6){
-      const dir=anim.boundaryPt[0]<360?-1:1;
-      c.translate(360,215);c.scale(1+0.08*qR,1+0.08*qR);c.translate(-360+dir*qR*25,-215);
-    } else if(ocR.out&&qR<0.2){
-      c.translate((Math.random()*6-3),(Math.random()*6-3));
+  const bpCam=ballXY(now);
+  if(bpCam){
+    let zm=1, px=0, py=0;
+    if(anim){
+      if(anim.phase==='runup'){zm=1.02;px=(bpCam.x-360)*0.20;py=(bpCam.y-200)*0.20;}
+      else if(anim.phase==='deliver'){zm=1.03;}
+      else if(anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/1600);zm=1+0.10*p;px=(bpCam.x-360)*0.30;py=(bpCam.y-200)*0.30;}
+      else if(anim.phase==='result'){zm=1+0.12*qR;px=(bpCam.x-360)*0.35;py=(bpCam.y-200)*0.35;}
     }
+    if(anim&&anim.phase==='result'&&ocR&&ocR.out&&qR<0.2){px+=(Math.random()*6-3);py+=(Math.random()*6-3);}
+    px=Math.max(-50,Math.min(50,px));py=Math.max(-40,Math.min(40,py));
+    c.translate(360+px,200+py);c.scale(zm,zm);c.translate(-360,-200);
   }
   // ---- real ground texture ----
-  if(grassImg.complete&&grassImg.naturalWidth>0){c.drawImage(grassImg,-40,0,800,400);}
+  if(grassImg.complete&&grassImg.naturalWidth>0){c.drawImage(grassImg,-60,-50,840,500);}
   else{
     const g=c.createLinearGradient(0,36,0,400);g.addColorStop(0,'#3d8b4f');g.addColorStop(1,'#2a6e38');
-    c.fillStyle=g;c.fillRect(-40,0,800,400);
+    c.fillStyle=g;c.fillRect(-60,-50,840,500);
   }
   // ---- real stadium crowd strip ----
-  if(crowdImg.complete&&crowdImg.naturalWidth>0){c.drawImage(crowdImg,-40,0,800,36);}
+  if(crowdImg.complete&&crowdImg.naturalWidth>0){c.drawImage(crowdImg,-60,-20,840,56);}
   else{
-    c.fillStyle='#0f2a1d';c.fillRect(-40,0,800,36);
+    c.fillStyle='#0f2a1d';c.fillRect(-60,-20,840,56);
     CROWD.forEach(d=>{c.fillStyle=d[2];c.beginPath();c.arc(d[0],d[1],2.5,0,Math.PI*2);c.fill();});
   }
   // boundary
@@ -580,22 +590,22 @@ function drawFrame(now){
     const oc=resultOutcome(), q=Math.min(1,(now-anim.t0)/2200);
     if(oc&&oc.out&&(oc.how==='bowled'||oc.how==='run out')&&q>0.3)broken=true;
   }
-  drawStumpsAt(c,360,58,0.8,false);
-  drawStumpsAt(c,360,336,1.1,broken);
+  drawStumpsAt(c,360,342,1.1,false);
+  drawStumpsAt(c,360,64,0.8,broken);
   // fielders
   FIELDERS.forEach(f=>{
-    let fx=f[0], fy=f[1], jump=0;
+    let fx=f[0], fy=400-f[1], jump=0;
     if(anim&&anim.phase==='result'&&ocR){
       if(ocR.runs===4&&anim.chaseFielder===f){
-        const b=ballXY(now);fx=f[0]+(b.x-f[0])*qR*0.45;fy=f[1]+(b.y-f[1])*qR*0.45;
+        const b=ballXY(now);fx=f[0]+(b.x-f[0])*qR*0.45;fy=fy+(b.y-fy)*qR*0.45;
       }
       if(ocR.out&&ocR.how==='caught'&&anim.catchFielder===f&&qR>0.5)jump=8*Math.sin((qR-0.5)/0.5*Math.PI);
     }
-    const s=0.7+(fy/400)*0.35;
+    const s=0.85+(fy/400)*0.5;
     drawFigure(c,{x:fx,y:fy,s:s,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#c68642',cap:true,leg:0,jump:jump});
   });
   // keeper
-  drawFigure(c,{x:360,y:356,s:1.2,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#8d5524',cap:true,leg:0});
+  drawFigure(c,{x:360,y:50,s:0.7,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:'#8d5524',cap:true,leg:0});
   // batsmen positions (running between wickets during result)
   let batY=320, nsY=140;
   if(anim&&anim.phase==='result'&&ocR&&!ocR.out&&ocR.runs>=1&&ocR.runs<=3){
@@ -604,9 +614,11 @@ function drawFrame(now){
     else{batY=140+180*fr;nsY=320-180*fr;}
   }
   const batRec=inn?inn.batsmen[inn.striker]:null, nsRec=inn?inn.batsmen[inn.nonStriker]:null;
+  const batScrY=400-batY, nsScrY=400-nsY;
+  const batSprH=60+batScrY*0.20, nsSprH=60+nsScrY*0.20;
   // non-striker (top end) — realistic sprite, code figure fallback
-  if(!drawSprite(c,sprBatStance,360,nsY,85))
-    drawFigure(c,{x:360,y:nsY,s:0.85+(nsY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
+  if(!drawSprite(c,sprBatStance,360,nsScrY,nsSprH))
+    drawFigure(c,{x:360,y:nsScrY,s:0.85+(nsScrY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:nsRec?skinFor(nsRec.p.n):'#ffdbac',helmet:true,pads:true,bat:-0.5,leg:0});
   // striker batsman — realistic sprite, swing crossfades stance -> swing
   let batAngle=-0.5, swung=false;
   if(anim&&anim.swingT){
@@ -615,14 +627,14 @@ function drawFrame(now){
     const mag={defend:0.7,normal:1,attack:1.2,loft:1.4}[magSrc||'normal'];
     batAngle=-0.5-(1-Math.pow(1-sp,2))*2.3*mag;
     if(sprBatStance.complete&&sprBatStance.naturalWidth){
-      drawSprite(c,sprBatStance,360,batY,125,1-sp);
-      drawSprite(c,sprBatSwing,360,batY,125,sp);
+      drawSprite(c,sprBatStance,360,batScrY,batSprH,1-sp);
+      drawSprite(c,sprBatSwing,360,batScrY,batSprH,sp);
       swung=true;
     }
   }
   if(!swung){
-    if(!drawSprite(c,sprBatStance,360,batY,125))
-      drawFigure(c,{x:360,y:batY,s:0.85+(batY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:batRec?skinFor(batRec.p.n):'#ffdbac',helmet:true,pads:true,bat:batAngle,leg:0});
+    if(!drawSprite(c,sprBatStance,360,batScrY,batSprH))
+      drawFigure(c,{x:360,y:batScrY,s:0.85+(batScrY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:batRec?skinFor(batRec.p.n):'#ffdbac',helmet:true,pads:true,bat:batAngle,leg:0});
   }
   // bowler
   let bowY=115, bowLeg=0, bowArm=null, bowBall=false;
@@ -632,14 +644,16 @@ function drawFrame(now){
     else bowArm=0.9;
   }
   const bowlRec=inn?curBowler():null;
-  const bowH=70+bowY*0.15;
-  if(!drawSprite(c,sprBowl,360,bowY,bowH))
-    drawFigure(c,{x:360,y:bowY,s:0.85+(bowY/400)*0.5,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:bowlRec?skinFor(bowlRec.p.n):'#ffdbac',cap:true,leg:bowLeg,arm:bowArm,ball:bowBall});
+  const bowScrY=400-bowY, bowH=60+bowScrY*0.08;
+  if(!drawSprite(c,sprBowl,360,bowScrY,bowH))
+    drawFigure(c,{x:360,y:bowScrY,s:0.85+(bowScrY/400)*0.5,kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,skin:bowlRec?skinFor(bowlRec.p.n):'#ffdbac',cap:true,leg:bowLeg,arm:bowArm,ball:bowBall});
+  // umpire (pink, behind bowler's stumps, like TV)
+  drawFigure(c,{x:330,y:378,s:1.1,kit:'#ec4899',pants:'#1f2937',skin:'#8d5524',cap:true,leg:0});
   // ball
   const bp=ballXY(now);
   if(bp){
     c.fillStyle='rgba(0,0,0,0.25)';c.beginPath();c.ellipse(bp.x,bp.y+10,bp.r*1.2,bp.r*0.4,0,0,Math.PI*2);c.fill();
-    if(anim&&anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/1600);[0.09,0.18].forEach((dp,i)=>{const pp=Math.max(0,p-dp);const tx=360+(anim.extra?55*pp:0);const ty=120+(315-120)*pp;c.fillStyle=i===0?'rgba(255,23,68,0.35)':'rgba(255,23,68,0.18)';c.beginPath();c.arc(tx,ty,bp.r*0.7,0,Math.PI*2);c.fill();});}
+    if(anim&&anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/1600);[0.09,0.18].forEach((dp,i)=>{const pp=Math.max(0,p-dp);const tx=360+(anim.extra?55*pp:0);const ty=280-195*pp;c.fillStyle=i===0?'rgba(255,23,68,0.35)':'rgba(255,23,68,0.18)';c.beginPath();c.arc(tx,ty,bp.r*0.7,0,Math.PI*2);c.fill();});}
     c.fillStyle='#ff1744';c.beginPath();c.arc(bp.x,bp.y,bp.r,0,Math.PI*2);c.fill();
     c.strokeStyle='#ffffff';c.lineWidth=2;c.beginPath();c.arc(bp.x,bp.y,bp.r,0,Math.PI*2);c.stroke();
     c.fillStyle='#ffffff';c.beginPath();c.arc(bp.x-bp.r*0.3,bp.y-bp.r*0.3,bp.r*0.3,0,Math.PI*2);c.fill();
@@ -647,10 +661,10 @@ function drawFrame(now){
   c.restore();
   // labels (fixed, outside camera move)
   c.fillStyle='#ffffff';c.font='bold 15px system-ui';c.textAlign='left';
-  if(inn){c.fillText(inn.bowlTeam.name,16,54);c.fillText(inn.batTeam.name,16,392);}
+  if(inn){c.fillText(inn.batTeam.name,16,54);c.fillText(inn.bowlTeam.name,16,392);}
   c.font='13px system-ui';c.fillStyle='#e8f5e9';c.textAlign='right';
-  if(inn&&bowlRec)c.fillText('🎳 '+bowlRec.p.n,704,54);
-  if(inn&&batRec)c.fillText('🏏 '+batRec.p.n,704,392);
+  if(inn&&bowlRec)c.fillText('🎳 '+bowlRec.p.n,704,392);
+  if(inn&&batRec)c.fillText('🏏 '+batRec.p.n,704,54);
   c.textAlign='left';
 }
 
