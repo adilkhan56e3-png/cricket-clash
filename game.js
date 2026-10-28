@@ -327,6 +327,7 @@ function nearestFielder(pt){let best=FIELDERS[0],bd=1e9;FIELDERS.forEach(f=>{con
 
 function startBattingSeq(){
  if(ballBusy)return;ballBusy=true;hitTiming=null;
+ const fl=$('field');if(fl&&fl.scrollIntoView)fl.scrollIntoView({block:'start'});
  $('timing-box').classList.remove('hidden');$('btn-hit').classList.remove('hidden');
  $('timing-needle').style.left='0%';
  $('btn-bowl-ball').disabled=true;
@@ -339,6 +340,7 @@ function startBattingSeq(){
  requestAnimationFrame(animLoop);}
 function startBowlingSeq(){
  if(ballBusy)return;ballBusy=true;$('btn-bowl-delivery').disabled=true;
+ const fl=$('field');if(fl&&fl.scrollIntoView)fl.scrollIntoView({block:'start'});
  const r=Math.random();
  let pre=null;
  if(r<0.05)pre={extra:'Wide ball'};

@@ -61,6 +61,11 @@
     <div class="field-wrap">
       <canvas id="field" width="720" height="400"></canvas>
       <div id="big-text" class="big-text hidden"></div>
+      <div id="timing-box" class="timing-box hidden">
+        <div class="timing-label">Tap HIT at the right moment!</div>
+        <div class="timing-bar" id="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
+      </div>
+      <button id="btn-hit" class="btn-hit hidden">🏏 HIT!</button>
     </div>
 
     <div class="scorebug">
@@ -74,10 +79,6 @@
     </div>
     <div class="sb-sub"><span id="sb-rr"></span> • <span id="sb-target"></span> <button id="btn-sound" onclick="toggleSound()">🔊 Voice: ON</button></div>
 
-    <div id="timing-box" class="timing-box hidden">
-      <div class="timing-label">Tap HIT at the right moment!</div>
-      <div class="timing-bar" id="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
-    </div>
 
     <!-- Batting controls -->
     <div id="bat-controls" class="controls hidden">
@@ -89,7 +90,6 @@
         <button class="pill shot" data-shot="loft">🚀 Lofted</button>
       </div>
       <button id="btn-bowl-ball" class="btn-big">🎳 Bowl the Ball</button>
-      <button id="btn-hit" class="btn-hit hidden">🏏 HIT!</button>
     </div>
 
     <!-- Bowling controls -->
