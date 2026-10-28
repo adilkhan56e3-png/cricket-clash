@@ -289,7 +289,8 @@ function nearestFielder(pt){let best=FIELDERS[0],bd=1e9;FIELDERS.forEach(f=>{con
 
 function startBattingSeq(){
  if(ballBusy)return;ballBusy=true;hitTiming=null;
- $('timing-box').classList.remove('hidden');$('btn-hit').classList.add('hidden');
+ $('timing-box').classList.remove('hidden');$('btn-hit').classList.remove('hidden');
+ $('timing-needle').style.left='0%';
  $('btn-bowl-ball').disabled=true;
  const r=Math.random();
  const bp=Math.random()<0.5?[110,190]:[610,190];
@@ -374,11 +375,12 @@ function finishSeq(){
 $('btn-bowl-ball').onclick=()=>{startBattingSeq();};
 $('btn-bowl-delivery').onclick=()=>{startBowlingSeq();};
 $('btn-hit').onclick=()=>{
- if(!ballBusy||!anim||anim.phase!=='travel')return;
+ if(!ballBusy||!anim||anim.phase==='result'||hitTiming!==null)return;
  const left=parseFloat($('timing-needle').style.left)||0;
  hitTiming=left;$('btn-hit').classList.add('hidden');
  anim.swingT=performance.now();
  beep(600,0.08,'square',0.1);};
+$('timing-bar').onclick=()=>{if(anim&&anim.kind==='bat')$('btn-hit').onclick();};
 
 function endMatch(){
  const [i1,i2]=M.innings;
