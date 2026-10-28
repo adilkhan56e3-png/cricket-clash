@@ -336,14 +336,14 @@ function aiBowlingOutcome(){
 function animLoop(t){
  if(!anim)return;
  const el=t-anim.t0;
- if(anim.phase==='runup'&&el>=900){anim.phase='deliver';anim.t0=t;}
- else if(anim.phase==='deliver'&&el>=250){
+ if(anim.phase==='runup'&&el>=1500){anim.phase='deliver';anim.t0=t;}
+ else if(anim.phase==='deliver'&&el>=450){
    anim.phase='travel';anim.t0=t;
    if(anim.kind==='bowl'){anim.swingT=t+150;}
    if(anim.kind==='bat'){$('btn-hit').classList.remove('hidden');}
  }
  else if(anim.phase==='travel'){
-   const p=Math.min(1,el/900);
+   const p=Math.min(1,el/1600);
    $('timing-needle').style.left=(p*100)+'%';
    if(p>=1){
      if(anim.kind==='bat'){
@@ -361,7 +361,7 @@ function animLoop(t){
      if(oc&&(oc.runs===4||oc.runs===6||oc.out))bigText(oc.out?'WICKET! ☝️':(oc.runs===4?'FOUR! 💥':'SIX! 🚀'));
    }
  }
- else if(anim.phase==='result'&&el>=1400){finishSeq();return;}
+ else if(anim.phase==='result'&&el>=2200){finishSeq();return;}
  drawFrame(t);
  requestAnimationFrame(animLoop);}
 function finishSeq(){
@@ -447,7 +447,7 @@ function drawFigure(c,o){
     c.fillStyle='#1f2937';c.beginPath();c.arc(x,y-61*s,10.5*s,Math.PI*0.95,Math.PI*2.05);c.fill();
     c.strokeStyle='#9ca3af';c.lineWidth=1.5*s;c.beginPath();c.moveTo(x-8*s,y-56*s);c.lineTo(x+8*s,y-56*s);c.stroke();
   } else if(o.cap){c.fillStyle=o.kit;c.beginPath();c.arc(x,y-64*s,9*s,Math.PI,0);c.fill();}
-  if(o.ball){c.fillStyle='#ff1744';c.beginPath();c.arc(x+14*s,y-52*s,4*s,0,Math.PI*2);c.fill();}
+  if(o.ball){c.fillStyle='#ff1744';c.beginPath();c.arc(x+14*s,y-52*s,6*s,0,Math.PI*2);c.fill();}
 }
 function drawStumpsAt(c,x,y,s,broken){
   c.strokeStyle='#ffd700';c.lineWidth=3*s;
@@ -466,34 +466,34 @@ function resultOutcome(){
 function ballXY(now){
   if(!anim)return null;
   if(anim.phase==='runup'){
-    const p=Math.min(1,(now-anim.t0)/900);
-    return {x:372,y:(45+p*70)-46,r:4};
+    const p=Math.min(1,(now-anim.t0)/1500);
+    return {x:372,y:(25+p*90)-46,r:10};
   }
   if(anim.phase==='deliver'){
-    const p=Math.min(1,(now-anim.t0)/250), a=-2.6+p*3.3;
-    return {x:370+Math.cos(a)*16,y:115-41+Math.sin(a)*16,r:4};
+    const p=Math.min(1,(now-anim.t0)/450), a=-2.6+p*3.3;
+    return {x:370+Math.cos(a)*16,y:115-41+Math.sin(a)*16,r:10};
   }
   if(anim.phase==='travel'){
-    const p=Math.min(1,(now-anim.t0)/900);
+    const p=Math.min(1,(now-anim.t0)/1600);
     let x=360+(anim.extra?55*p:0);
     let y=120+(315-120)*p;
     if(p>0.6&&p<0.72)y-=Math.sin((p-0.6)/0.12*Math.PI)*5;
-    return {x,y,r:4+p*4};
+    return {x,y,r:6+p*5};
   }
-  const q=Math.min(1,(now-anim.t0)/1400);
+  const q=Math.min(1,(now-anim.t0)/2200);
   const oc=resultOutcome();
   const ex=anim.kind==='bat'?anim.extra:anim.pre.extra;
-  if(ex)return {x:360,y:320+q*35,r:7};
-  if(!oc)return {x:360,y:350,r:7};
+  if(ex)return {x:360,y:320+q*35,r:10};
+  if(!oc)return {x:360,y:350,r:10};
   if(oc.out){
-    if(oc.how==='caught'){const f=anim.catchFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:7};}
-    if(oc.how==='bowled'||oc.how==='run out')return {x:360,y:315+q*20,r:7};
-    return {x:360,y:315,r:7};
+    if(oc.how==='caught'){const f=anim.catchFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:10};}
+    if(oc.how==='bowled'||oc.how==='run out')return {x:360,y:315+q*20,r:10};
+    return {x:360,y:315,r:10};
   }
-  if(oc.runs===0)return {x:360,y:320+q*35,r:7};
-  if(oc.runs===6)return {x:360+(anim.boundaryPt[0]-360)*q*1.4,y:315-q*260,r:7+q*7};
-  if(oc.runs===4)return {x:360+(anim.boundaryPt[0]-360)*q,y:315+(anim.boundaryPt[1]-315)*q,r:7};
-  const f=anim.fieldFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:7};
+  if(oc.runs===0)return {x:360,y:320+q*35,r:10};
+  if(oc.runs===6)return {x:360+(anim.boundaryPt[0]-360)*q*1.4,y:315-q*260,r:10+q*7};
+  if(oc.runs===4)return {x:360+(anim.boundaryPt[0]-360)*q,y:315+(anim.boundaryPt[1]-315)*q,r:10};
+  const f=anim.fieldFielder;return {x:360+(f[0]-360)*q,y:315+(f[1]-315)*q,r:10};
 }
 const grassImg=new Image();grassImg.src='grass.jpg';
 const crowdImg=new Image();crowdImg.src='crowd.jpg';
@@ -506,10 +506,10 @@ function drawFrame(now){
   const batKit=inn?kitFor(inn.batTeam):{kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,accent:'#ffffff',pattern:'band',pants:batCol};
   const bowlKit=inn?kitFor(inn.bowlTeam):{kit:bowlKit.kit,accent:bowlKit.accent,pattern:bowlKit.pattern,pants:bowlKit.pants,accent:'#ffffff',pattern:'band',pants:bowlCol};
   const ocR=(anim&&anim.phase==='result')?resultOutcome():null;
-  const qR=(anim&&anim.phase==='result')?Math.min(1,(now-anim.t0)/1400):0;
+  const qR=(anim&&anim.phase==='result')?Math.min(1,(now-anim.t0)/2200):0;
   // ---- camera (broadcast feel): pan+zoom on boundaries, shake on wicket ----
   c.save();
-  if(anim&&anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/900);c.translate(360,320);c.scale(1+0.10*p,1+0.10*p);c.translate(-360,-320);}
+  if(anim&&anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/1600);c.translate(360,320);c.scale(1+0.10*p,1+0.10*p);c.translate(-360,-320);}
   if(anim&&anim.phase==='result'&&ocR){
     if(ocR.runs===4||ocR.runs===6){
       const dir=anim.boundaryPt[0]<360?-1:1;
@@ -544,7 +544,7 @@ function drawFrame(now){
   // stumps
   let broken=false;
   if(anim&&anim.phase==='result'){
-    const oc=resultOutcome(), q=Math.min(1,(now-anim.t0)/1400);
+    const oc=resultOutcome(), q=Math.min(1,(now-anim.t0)/2200);
     if(oc&&oc.out&&(oc.how==='bowled'||oc.how==='run out')&&q>0.3)broken=true;
   }
   drawStumpsAt(c,360,58,0.8,false);
@@ -576,17 +576,17 @@ function drawFrame(now){
   // striker batsman + bat swing
   let batAngle=-0.5;
   if(anim&&anim.swingT){
-    const sp=Math.max(0,Math.min(1,(now-anim.swingT)/300));
+    const sp=Math.max(0,Math.min(1,(now-anim.swingT)/600));
     const magSrc=anim.kind==='bat'?anim.shot:(anim.pre?anim.pre.agg:'normal');
     const mag={defend:0.7,normal:1,attack:1.2,loft:1.4}[magSrc||'normal'];
-    batAngle=-0.5-(1-Math.pow(1-sp,2))*1.9*mag;
+    batAngle=-0.5-(1-Math.pow(1-sp,2))*2.3*mag;
   }
   drawFigure(c,{x:360,y:batY,s:0.85+(batY/400)*0.5,kit:batKit.kit,accent:batKit.accent,pattern:batKit.pattern,pants:batKit.pants,skin:batRec?skinFor(batRec.p.n):'#ffdbac',helmet:true,pads:true,bat:batAngle,leg:0});
   // bowler
   let bowY=115, bowLeg=0, bowArm=null, bowBall=false;
   if(anim){
-    if(anim.phase==='runup'){const p=Math.min(1,(now-anim.t0)/900);bowY=45+p*70;bowLeg=(now-anim.t0)*0.03;bowBall=true;}
-    else if(anim.phase==='deliver'){const p=Math.min(1,(now-anim.t0)/250);bowArm=-2.6+p*3.3;bowBall=p<0.85;}
+    if(anim.phase==='runup'){const p=Math.min(1,(now-anim.t0)/1500);bowY=25+p*90;bowLeg=(now-anim.t0)*0.03;bowBall=true;}
+    else if(anim.phase==='deliver'){const p=Math.min(1,(now-anim.t0)/450);bowArm=-2.6+p*3.3;bowBall=p<0.85;}
     else bowArm=0.9;
   }
   const bowlRec=inn?curBowler():null;
@@ -595,7 +595,9 @@ function drawFrame(now){
   const bp=ballXY(now);
   if(bp){
     c.fillStyle='rgba(0,0,0,0.25)';c.beginPath();c.ellipse(bp.x,bp.y+10,bp.r*1.2,bp.r*0.4,0,0,Math.PI*2);c.fill();
+    if(anim&&anim.phase==='travel'){const p=Math.min(1,(now-anim.t0)/1600);[0.09,0.18].forEach((dp,i)=>{const pp=Math.max(0,p-dp);const tx=360+(anim.extra?55*pp:0);const ty=120+(315-120)*pp;c.fillStyle=i===0?'rgba(255,23,68,0.35)':'rgba(255,23,68,0.18)';c.beginPath();c.arc(tx,ty,bp.r*0.7,0,Math.PI*2);c.fill();});}
     c.fillStyle='#ff1744';c.beginPath();c.arc(bp.x,bp.y,bp.r,0,Math.PI*2);c.fill();
+    c.strokeStyle='#ffffff';c.lineWidth=2;c.beginPath();c.arc(bp.x,bp.y,bp.r,0,Math.PI*2);c.stroke();
     c.fillStyle='#ffffff';c.beginPath();c.arc(bp.x-bp.r*0.3,bp.y-bp.r*0.3,bp.r*0.3,0,Math.PI*2);c.fill();
   }
   c.restore();
