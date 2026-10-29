@@ -125,7 +125,7 @@ function resetStumps(g){
 // ---------- Procedural 3D athletes ----------
 const matC=(c,r=0.9)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
 function capsule(r,len,m){const x=new THREE.Mesh(new THREE.CapsuleGeometry(r,len,4,12),m);x.castShadow=true;return x;}
-function makeHumanoid({kit,pants,skin,helmet,padder=false,trim=0xffffff,hairC=0x111827}){
+function makeHumanoid({kit,pants,skin,helmet,padder=false,trim=0xffffff,hairC=0x111827,withBat=false}){
   const g=new THREE.Group();
   const kitM=matC(kit),pantsM=matC(pants),skinM=matC(skin),helmM=matC(helmet||kit),trimM=matC(trim);
   const hips=new THREE.Group();hips.position.y=0.98;g.add(hips);
@@ -169,10 +169,14 @@ function makeHumanoid({kit,pants,skin,helmet,padder=false,trim=0xffffff,hairC=0x
     return {hp,kn};
   }
   const aL=arm(-1),aR=arm(1),lL=leg(-1),lR=leg(1);
+  // Only batsmen carry a bat. The old code attached one to every player,
+  // which is why the keeper, bowler and fielders wrongly held bats too.
   const bat=new THREE.Group();
-  const blade=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.56,0.035),matC(0xe7c89a,0.7));blade.position.y=-0.28;blade.castShadow=true;bat.add(blade);
-  const handle=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.26,8),matC(0x1f2937));handle.position.y=0.13;bat.add(handle);
-  bat.position.set(0,-0.36,0.03);aR.el.add(bat);
+  if(withBat){
+    const blade=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.56,0.035),matC(0xe7c89a,0.7));blade.position.y=-0.28;blade.castShadow=true;bat.add(blade);
+    const handle=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.26,8),matC(0x1f2937));handle.position.y=0.13;bat.add(handle);
+    bat.position.set(0,-0.36,0.03);aR.el.add(bat);
+  }
   return {group:g,hips,head,aL,aR,lL,lR,bat};
 }
 function setPose(p,o){
@@ -207,8 +211,8 @@ function clearPlayers(){
 function setupPlayers(batTeam,bowlTeam){
   clearPlayers();
   const bk=kitFor(batTeam),wk=kitFor(bowlTeam);
-  batFigA=makeHumanoid({...bk,skin:skinFor('A'),hairC:hairFor('A'),padder:true});
-  batFigB=makeHumanoid({...bk,skin:skinFor('B'),hairC:hairFor('B'),padder:true});
+  batFigA=makeHumanoid({...bk,skin:skinFor('A'),hairC:hairFor('A'),padder:true,withBat:true});
+  batFigB=makeHumanoid({...bk,skin:skinFor('B'),hairC:hairFor('B'),padder:true,withBat:true});
   bowlFig=makeHumanoid({...wk,skin:skinFor('C'),hairC:hairFor('C')});
   keepFig=makeHumanoid({...wk,skin:skinFor('D'),hairC:hairFor('D'),padder:true});
   scene.add(batFigA.group,batFigB.group,bowlFig.group,keepFig.group);
