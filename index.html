@@ -62,7 +62,8 @@ h2{margin:10px 0}.note{font-size:.85rem;color:#bfe8cd;background:#12291d;border:
 .btn-hit{display:block;width:100%;padding:14px;background:#dc2626;color:#fff;border:none;border-radius:12px;font-size:1.25rem;font-weight:800;cursor:pointer;margin-top:8px}
 #btn-bowl-ball,#btn-bowl-delivery{margin-top:8px}
 #power-meter{height:12px;background:#1e3a2f;border-radius:6px;overflow:hidden;position:relative;margin:4px 0}
-#power-needle{position:absolute;top:0;bottom:0;left:0;width:50%;background:linear-gradient(90deg,#16a34a,#ffd700,#dc2626)}
+#power-needle{position:absolute;top:0;bottom:0;left:0;width:70%;background:linear-gradient(90deg,#16a34a,#ffd700,#dc2626)}
+#power-slider{width:100%;accent-color:#ffd700;margin:6px 0 2px;cursor:pointer}
 #power-text{font-size:.72rem;color:#bfe8cd}
 #bottom-bar{position:absolute;left:0;right:0;bottom:0;height:40px;display:flex;align-items:center;gap:6px;padding:0 8px;background:rgba(0,0,0,.55);font-size:.75rem;z-index:6}
 #ticker{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#eafff0}
@@ -195,9 +196,10 @@ canvas.map{background:#0b3d1e;border-radius:8px}
           <button class="mini-btn blen active" data-blen="good">GOOD LENGTH</button>
           <button class="mini-btn blen" data-blen="short">SHORT</button>
         </div>
-        <div class="ovl-title">POWER / ACCURACY</div>
+        <div class="ovl-title">POWER / ACCURACY — slider se aap set karein</div>
         <div id="power-meter"><div id="power-needle"></div></div>
-        <div id="power-text">Power 50% — set by the moving meter at delivery</div>
+        <input type="range" id="power-slider" min="10" max="100" value="70">
+        <div id="power-text">Power 70% — aap ne set ki</div>
         <button id="btn-bowl-delivery" class="btn-big">🎳 BOWL!</button>
       </div>
 

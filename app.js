@@ -28,14 +28,16 @@ function say(txt){const tk=$('ticker');if(tk)tk.textContent=txt;const ul=$('comm
 // ---------- Three.js setup ----------
 const wrap=$('scene-wrap');
 const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setPixelRatio(Math.min(devicePixelRatio,3));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 wrap.appendChild(renderer.domElement);
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x87b5e0);
 scene.fog=new THREE.Fog(0x87b5e0,120,240);
-const camera=new THREE.PerspectiveCamera(55,1,0.1,500);
-camera.position.set(0,7,-30);
+const camera=new THREE.PerspectiveCamera(52,1,0.1,500);
+camera.position.set(0,5.5,-23);
 const sun=new THREE.DirectionalLight(0xfff2d0,2.2);
 sun.position.set(40,60,-20);sun.castShadow=true;
 sun.shadow.mapSize.set(2048,2048);
@@ -60,6 +62,9 @@ const crowdTex=canvasTex(512,256,(g,w,h)=>{
   const cols=['#e11d48','#2563eb','#f59e0b','#16a34a','#f8fafc','#7c3aed','#0ea5e9','#f97316'];
   for(let y=0;y<h;y+=8)for(let x=0;x<w;x+=6){g.fillStyle=cols[Math.floor(Math.random()*cols.length)];g.beginPath();g.arc(x+3,y+4,2.6,0,7);g.fill();}
 });
+// Sharper ground at grazing broadcast angles: max anisotropy on textures.
+const maxAniso=renderer.capabilities.getMaxAnisotropy();
+[grassTex,pitchTex,crowdTex].forEach(t=>{t.anisotropy=Math.min(8,maxAniso);});
 // ---------- Stadium ----------
 const ground=new THREE.Mesh(new THREE.CircleGeometry(95,64),new THREE.MeshStandardMaterial({map:grassTex,roughness:1}));
 ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
@@ -212,22 +217,22 @@ const LEN_Z={yorker:8.6,full:7.0,good:4.5,short:1.2};
 const currentBounceZ=()=>Math.max(0.5,Math.min(9.0,(LEN_Z[bowlLength]??4.5)+joyY*1.5));
 // ---------- Cameras ----------
 const CAMS={
-  broadcast:{pos:new THREE.Vector3(0,7,-30),look:new THREE.Vector3(0,1.2,6)},
-  side:{pos:new THREE.Vector3(28,4,2),look:new THREE.Vector3(0,1,2)},
+  broadcast:{pos:new THREE.Vector3(0,5.5,-23),look:new THREE.Vector3(0,1.2,7)},
+  side:{pos:new THREE.Vector3(24,3.5,2),look:new THREE.Vector3(0,1,2)},
   wide:{pos:new THREE.Vector3(0,26,-48),look:new THREE.Vector3(0,0,0)},
-  closeBat:{pos:new THREE.Vector3(4.5,2.2,14.5),look:new THREE.Vector3(0,1,9.5)},
-  closeBowl:{pos:new THREE.Vector3(-4.5,2.2,-14.5),look:new THREE.Vector3(0,1,-9.5)},
+  closeBat:{pos:new THREE.Vector3(3.8,1.9,13.2),look:new THREE.Vector3(0,1.1,9.5)},
+  closeBowl:{pos:new THREE.Vector3(-3.8,1.9,-13.2),look:new THREE.Vector3(0,1.1,-9.5)},
 };
 let camMode='broadcast', camTarget={...CAMS.broadcast}, camAuto=true;
 function setCam(name){camMode=name;camTarget=CAMS[name]||CAMS.broadcast;const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: '+name;}}
 function trackBall(bpos){
-  camTarget={pos:new THREE.Vector3(bpos.x*0.55,9,bpos.z-16),look:new THREE.Vector3(bpos.x,bpos.y,bpos.z)};
+  camTarget={pos:new THREE.Vector3(bpos.x*0.55,7.5,bpos.z-13),look:new THREE.Vector3(bpos.x,bpos.y,bpos.z)};
 }
 
 // ---------- Game state ----------
 let userTeam=null,oppTeam=null,overs=5,M=null,userBatsFirst=true;
 let shot='drive',delivery='fast',ballBusy=false,paused=false,qualityHigh=true;
-let joyX=0,joyY=0,bowlType='fast',bowlLength='good',bowlPower=50,curPower=50;
+let joyX=0,joyY=0,bowlType='fast',bowlLength='good',bowlPower=70,curPower=70;
 let phase='idle',phaseT0=0,gameTime=0,hitDone=false,hitP=null,lastTiming=null;
 let ballData=null,lastEv=null,lastShotDir=null,lastBounce=null,shotsLog=[];
 // Replay: frame-by-frame trace of the live ball (positions + actors), played
@@ -551,6 +556,8 @@ function endMatch(){
 document.querySelectorAll('.shot').forEach(b=>b.onclick=()=>{document.querySelectorAll('.shot').forEach(x=>x.classList.remove('active'));b.classList.add('active');shot=b.dataset.shot;unlockAudio();});
 document.querySelectorAll('.btype').forEach(b=>b.onclick=()=>{document.querySelectorAll('.btype').forEach(x=>x.classList.remove('active'));b.classList.add('active');bowlType=b.dataset.btype;unlockAudio();});
 document.querySelectorAll('.blen').forEach(b=>b.onclick=()=>{document.querySelectorAll('.blen').forEach(x=>x.classList.remove('active'));b.classList.add('active');bowlLength=b.dataset.blen;unlockAudio();});
+const pSlider=$('power-slider');
+if(pSlider)pSlider.addEventListener('input',()=>{bowlPower=+pSlider.value;curPower=bowlPower;const pn=$('power-needle');if(pn)pn.style.width=curPower+'%';const pt=$('power-text');if(pt)pt.textContent=`Power ${curPower}% — aap ne set ki`;});
 $('btn-stats').onclick=()=>{$('stats-overlay').classList.toggle('hidden');};
 $('btn-close-stats').onclick=()=>{$('stats-overlay').classList.add('hidden');};
 (function initJoystick(){
@@ -572,7 +579,7 @@ $('btn-bowl-ball').onclick=startBall;$('btn-bowl-delivery').onclick=startBall;$(
 $('btn-skip-replay').onclick=()=>{if(phase==='replay')endReplay();};
 $('btn-pause').onclick=()=>{paused=!paused;$('btn-pause').textContent=paused?'▶':'⏸';};
 $('btn-sound').onclick=()=>{soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in window))speechSynthesis.cancel();if(crowdGain)crowdGain.gain.value=soundOn?0.035:0;$('btn-sound').textContent=soundOn?'🔊':'🔇';};
-$('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,2):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 High':'🎞 Low';};
+$('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,3):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 High':'🎞 Low';};
 $('btn-cam').onclick=()=>{const order=['broadcast','side','wide','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
 $('btn-scorecard').onclick=()=>{$('scorecard-wrap').classList.toggle('hidden');renderScorecard();};
 $('btn-rematch').onclick=()=>{document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';};
@@ -589,7 +596,7 @@ document.addEventListener('keydown',e=>{
 });
 // ---------- Animation loop ----------
 const clock=new THREE.Clock();
-const camPos=new THREE.Vector3(0,7,-30),camLook=new THREE.Vector3(0,1.2,6);
+const camPos=new THREE.Vector3(0,5.5,-23),camLook=new THREE.Vector3(0,1.2,6);
 function easeOut(t){return 1-Math.pow(1-t,3);}
 function updatePhase(){
   if(!ballData&&phase!=='result')return;
@@ -600,9 +607,10 @@ function updatePhase(){
     setPose(bowlFig,{lLx:s*0.8,lLk:-0.6,lRx:-s*0.8,lRk:-0.6,aLx:-s*0.6,aRx:s*0.6,hipsY:0.98});
     ballGrp.visible=false;
     if(ballData&&!ballData.userBatting){
-      curPower=Math.round((Math.sin(gameTime*5)+1)/2*100);
+      // Power is the user's own slider setting, not an auto meter.
+      const sl=$('power-slider');if(sl)curPower=+sl.value;
       const pn=$('power-needle');if(pn)pn.style.width=curPower+'%';
-      const pt=$('power-text');if(pt)pt.textContent=`Power ${curPower}% — set by the moving meter at delivery`;
+      const pt=$('power-text');if(pt)pt.textContent=`Power ${curPower}% — aap ne set ki`;
     }
     if(p>=1){
       if(ballData&&!ballData.userBatting){
@@ -716,10 +724,10 @@ function updatePhase(){
     // close-up for the catch moment.
     if(a.type==='four'||a.type==='six'){
       if(q<0.6)trackBall(ballGrp.position);
-      else if(a.bp)camTarget={pos:V3(a.bp.x*1.18,4,a.bp.z*1.18),look:V3(0,1,0)};
+      else if(a.bp)camTarget={pos:V3(a.bp.x*1.12,3,a.bp.z*1.12),look:V3(0,1,0)};
     } else if(a.type==='caught'){
       if(q<0.7)camTarget={...CAMS.wide};
-      else camTarget={pos:V3(a.to.x+4,2.5,a.to.z+4),look:V3(a.to.x,1.2,a.to.z)};
+      else camTarget={pos:V3(a.to.x+3,2,a.to.z+3),look:V3(a.to.x,1.2,a.to.z)};
     } else if(a.type==='runs'){camTarget={...CAMS.wide};}
     if(p>=1){
       if(!ballData.replayDone&&replayWorthy(ballData.res))startReplay();
@@ -750,7 +758,7 @@ function updatePhase(){
     else{
       const ev=replayEvent;
       if(ev&&(ev.type==='four'||ev.type==='six'))trackBall(ballGrp.position);
-      else if(ev&&ev.type==='caught'&&A.cf)camTarget={pos:V3(A.cf.pos.x+4,2.5,A.cf.pos.z+4),look:V3(A.cf.pos.x,1.2,A.cf.pos.z)};
+      else if(ev&&ev.type==='caught'&&A.cf)camTarget={pos:V3(A.cf.pos.x+3,2,A.cf.pos.z+3),look:V3(A.cf.pos.x,1.2,A.cf.pos.z)};
       else camTarget=CAMS.closeBat;
     }
     if(rt>=dur)endReplay();
@@ -800,7 +808,7 @@ function loop(){
   }
   // camera smoothing
   let targetPos=camTarget.pos,targetLook=camTarget.look;
-  if(camMode==='follow'&&ballGrp.visible){targetPos=V3(ballGrp.position.x*0.55,9,ballGrp.position.z-16);targetLook=ballGrp.position.clone();}
+  if(camMode==='follow'&&ballGrp.visible){targetPos=V3(ballGrp.position.x*0.55,7.5,ballGrp.position.z-13);targetLook=ballGrp.position.clone();}
   camPos.lerp(targetPos,0.06);camLook.lerp(targetLook,0.08);
   camera.position.copy(camPos);camera.lookAt(camLook);
   renderer.render(scene,camera);
