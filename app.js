@@ -33,6 +33,10 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.15;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 wrap.appendChild(renderer.domElement);
+// Graphics recovery: if the browser drops the WebGL context, keep the
+// game alive instead of leaving a frozen/blank canvas.
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});});
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x87b5e0);
 scene.fog=new THREE.Fog(0x87b5e0,120,240);
@@ -121,18 +125,34 @@ function resetStumps(g){
 // ---------- Procedural 3D athletes ----------
 const matC=(c,r=0.9)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
 function capsule(r,len,m){const x=new THREE.Mesh(new THREE.CapsuleGeometry(r,len,4,12),m);x.castShadow=true;return x;}
-function makeHumanoid({kit,pants,skin,helmet,padder=false}){
+function makeHumanoid({kit,pants,skin,helmet,padder=false,trim=0xffffff,hairC=0x111827}){
   const g=new THREE.Group();
-  const kitM=matC(kit),pantsM=matC(pants),skinM=matC(skin),helmM=matC(helmet||kit);
+  const kitM=matC(kit),pantsM=matC(pants),skinM=matC(skin),helmM=matC(helmet||kit),trimM=matC(trim);
   const hips=new THREE.Group();hips.position.y=0.98;g.add(hips);
   const torso=capsule(0.165,0.42,kitM);torso.position.y=0.36;hips.add(torso);
-  const stripe=new THREE.Mesh(new THREE.BoxGeometry(0.30,0.09,0.02),matC(0xffffff));stripe.position.set(0,0.44,0.15);hips.add(stripe);
+  const stripe=new THREE.Mesh(new THREE.BoxGeometry(0.30,0.09,0.02),trimM);stripe.position.set(0,0.44,0.15);hips.add(stripe);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.055,0.1,10),skinM);neck.position.y=0.72;hips.add(neck);
   const head=new THREE.Group();head.position.y=0.80;hips.add(head);
   const skull=new THREE.Mesh(new THREE.SphereGeometry(0.125,20,16),skinM);skull.castShadow=true;head.add(skull);
-  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.148,20,16),helmM);helm.position.y=0.025;helm.castShadow=true;head.add(helm);
-  const visor=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.05,0.03),matC(0x1f2937));visor.position.set(0,0.01,0.14);head.add(visor);
+  // Open helmet shell: covers the top only, so the face stays visible
+  // (the old full shell hid every face behind helmet colour).
+  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.148,20,16,0,Math.PI*2,0,Math.PI*0.55),helmM);helm.position.y=0.02;helm.castShadow=true;head.add(helm);
+  // Helmet peak sits above the eyes, not across them.
+  const visor=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.06),matC(0x1f2937));visor.position.set(0,0.075,0.13);head.add(visor);
+  // Face: eyes, pupils, brows, nose, mouth, ears, hair at back/sides.
+  const whiteM=matC(0xffffff),darkM=matC(0x1f2937),mouthM=matC(0x7f1d1d);
+  [-1,1].forEach(s=>{
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.022,10,8),whiteM);eye.position.set(0.05*s,0.02,0.115);head.add(eye);
+    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.011,8,8),darkM);pup.position.set(0.05*s,0.02,0.132);head.add(pup);
+    const brow=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.012,0.01),darkM);brow.position.set(0.05*s,0.058,0.12);head.add(brow);
+    const ear=new THREE.Mesh(new THREE.SphereGeometry(0.028,8,8),skinM);ear.position.set(0.125*s,0,0);head.add(ear);
+  });
+  const nose=new THREE.Mesh(new THREE.BoxGeometry(0.028,0.05,0.03),skinM);nose.position.set(0,-0.02,0.128);head.add(nose);
+  const mouth=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.014,0.01),mouthM);mouth.position.set(0,-0.065,0.118);head.add(mouth);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(0.13,16,12),matC(hairC));hair.scale.set(1,1,0.75);hair.position.set(0,0.015,-0.035);head.add(hair);
   function arm(side){
     const sh=new THREE.Group();sh.position.set(0.25*side,0.60,0);hips.add(sh);
+    const band=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.06,0.14),trimM);band.position.y=-0.06;sh.add(band);
     const up=capsule(0.055,0.26,kitM);up.position.y=-0.15;sh.add(up);
     const el=new THREE.Group();el.position.y=-0.32;sh.add(el);
     const fo=capsule(0.05,0.24,skinM);fo.position.y=-0.14;el.add(fo);
@@ -168,12 +188,18 @@ const STANCE={hipsY:0.88,lean:0.28,aRx:-0.5,aRz:-0.2,aRe:-0.9,aLx:-0.3,aLz:0.3,a
 const KEEPER={hipsY:0.60,lean:0.45,aRx:-0.9,aRz:-0.4,aRe:-0.5,aLx:-0.9,aLz:0.4,aLe:-0.5,lLx:0.9,lLk:-1.3,lRx:0.9,lRk:-1.3,batX:-0.3};
 const skinTones=[0xffdbac,0xf1c27d,0xe0ac69,0xc68642,0x8d5524];
 const skinFor=n=>{let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))>>>0;return skinTones[h%skinTones.length];};
+const hairTones=[0x111827,0x3f2d20,0x1f2937,0x4b3621];
+const hairFor=n=>{let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))>>>0;return hairTones[h%hairTones.length];};
 // ---------- Players on field ----------
 const FIELD_SPOTS=[{x:3.5,z:12,role:'slip'},{x:-3.5,z:12,role:'slip'},
   {x:15,z:5,role:'point'},{x:18,z:-4,role:'cover'},{x:11,z:-14,role:'mid-off'},{x:-11,z:-14,role:'mid-on'},
   {x:-16,z:5,role:'square-leg'},{x:-9,z:15,role:'fine-leg'},{x:13,z:16,role:'third-man'}];
 let batFigA=null,batFigB=null,bowlFig=null,keepFig=null,fieldFigs=[];
-function kitFor(team){return {kit:team.color,pants:team.id==='IND'||team.id==='PAK'?0xffffff:0x1f2937,helmet:team.color};}
+// Country kits: shirt colour comes from the team, trousers + trim per
+// team below. No official logos or sponsors (unlicensed), and no player
+// numbers painted on (those need per-player textures).
+const KITS={IND:{pants:0x1e5aff,trim:0xff9933},PAK:{pants:0x01411c,trim:0xffffff},AUS:{pants:0x00843d,trim:0x00843d},ENG:{pants:0x0a1f44,trim:0xce1124},NZ:{pants:0x111111,trim:0xffffff},SA:{pants:0x007a4d,trim:0xffb81c},SL:{pants:0x0033a0,trim:0xffcc00},BAN:{pants:0x006a4e,trim:0xf42a41},AFG:{pants:0x1b4f9c,trim:0xd3202c},WI:{pants:0x7b0c1e,trim:0xffd700},ZIM:{pants:0xcc0000,trim:0xffd200},IRE:{pants:0x169b62,trim:0xffffff},SCO:{pants:0x005eb8,trim:0xffffff},NED:{pants:0xff7f00,trim:0xffffff},USA:{pants:0x002868,trim:0xbf0a30}};
+function kitFor(team){const k=KITS[team.id]||{pants:0x1f2937,trim:0xffffff};return {kit:team.color,pants:k.pants,trim:k.trim,helmet:team.color};}
 function clearPlayers(){
   [batFigA,batFigB,bowlFig,keepFig,...fieldFigs].forEach(f=>{if(f)scene.remove(f.group);});
   batFigA=batFigB=bowlFig=keepFig=null;fieldFigs=[];
@@ -181,13 +207,13 @@ function clearPlayers(){
 function setupPlayers(batTeam,bowlTeam){
   clearPlayers();
   const bk=kitFor(batTeam),wk=kitFor(bowlTeam);
-  batFigA=makeHumanoid({...bk,skin:skinFor('A'),padder:true});
-  batFigB=makeHumanoid({...bk,skin:skinFor('B'),padder:true});
-  bowlFig=makeHumanoid({...wk,skin:skinFor('C')});
-  keepFig=makeHumanoid({...wk,skin:skinFor('D'),padder:true});
+  batFigA=makeHumanoid({...bk,skin:skinFor('A'),hairC:hairFor('A'),padder:true});
+  batFigB=makeHumanoid({...bk,skin:skinFor('B'),hairC:hairFor('B'),padder:true});
+  bowlFig=makeHumanoid({...wk,skin:skinFor('C'),hairC:hairFor('C')});
+  keepFig=makeHumanoid({...wk,skin:skinFor('D'),hairC:hairFor('D'),padder:true});
   scene.add(batFigA.group,batFigB.group,bowlFig.group,keepFig.group);
   FIELD_SPOTS.forEach(sp=>{
-    const f=makeHumanoid({...wk,skin:skinFor(sp.role)});
+    const f=makeHumanoid({...wk,skin:skinFor(sp.role),hairC:hairFor(sp.role)});
     f.group.position.set(sp.x,0,sp.z);
     f.group.lookAt(0,1,0);
     scene.add(f.group);fieldFigs.push({fig:f,home:{x:sp.x,z:sp.z},role:sp.role});
@@ -202,9 +228,9 @@ function setupPlayers(batTeam,bowlTeam){
 }
 // ---------- Ball ----------
 const ballGrp=new THREE.Group();
-const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(0.14,20,16),new THREE.MeshStandardMaterial({color:0xdc2626,roughness:0.35}));
+const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(0.08,20,16),new THREE.MeshStandardMaterial({color:0xdc2626,roughness:0.35}));
 ballMesh.castShadow=true;ballGrp.add(ballMesh);
-const seam=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.014,8,24),new THREE.MeshStandardMaterial({color:0xffffff}));
+const seam=new THREE.Mesh(new THREE.TorusGeometry(0.08,0.008,8,24),new THREE.MeshStandardMaterial({color:0xffffff}));
 ballGrp.add(seam);ballGrp.visible=false;scene.add(ballGrp);
 // line-and-length pitch marker (3D, sits on the pitch while bowling)
 const markerMesh=new THREE.Group();
@@ -364,6 +390,8 @@ $('btn-start-match').onclick=()=>{
   say(`🏏 Match started: ${userTeam.name} vs ${oppTeam.name}, ${overs} overs. ${batFirst.name} batting first.`);
   speak(`Welcome to Cricket Clash 3D. ${batFirst.name} batting first.`);
   resetBall();renderAll();updateControls();
+  // Batting mode: the first ball arrives on its own after a short intro.
+  if(userBattingNow()&&autoBowl)scheduleAutoBall(2500);
 };
 function updateControls(){
   const ub=userBattingNow();
@@ -372,6 +400,9 @@ function updateControls(){
   $('timing-box').classList.add('hidden');$('btn-hit').classList.add('hidden');
   $('joy-caption').textContent=ub?'Shot direction':'Bowling direction';
   $('btn-bowl-ball').disabled=false;$('btn-bowl-delivery').disabled=false;
+  // Batting mode + auto bowling: no manual BOWL button (toggle = practice mode).
+  $('btn-bowl-ball').classList.toggle('hidden',ub&&autoBowl);
+  const at=$('btn-auto-toggle');if(at)at.textContent=autoBowl?'🤖 Auto bowling: ON':'✋ Manual bowling';
 }
 function resetBall(){
   ballGrp.visible=false;phase='idle';ballBusy=false;
@@ -384,9 +415,27 @@ function resetBall(){
   setPose(keepFig,KEEPER);resetStumps(stumpsBat);resetStumps(stumpsBowl);
   $('btn-bowl-ball').disabled=false;$('btn-bowl-delivery').disabled=false;
 }
+// ---------- Automatic bowling (batting mode) ----------
+// The user only picks shot + timing; the AI bowler delivers on its own.
+// Never fires while a ball is active, paused, replaying, or between innings.
+let autoBowl=true,autoTimer=null;
+function clearAutoTimer(){if(autoTimer){clearTimeout(autoTimer);autoTimer=null;}}
+function scheduleAutoBall(ms){
+  clearAutoTimer();
+  if(!autoBowl)return;
+  autoTimer=setTimeout(()=>{
+    autoTimer=null;
+    if(!M||!document.body.classList.contains('in-match'))return;
+    if(!$('screen-match')||!$('screen-match').classList.contains('active'))return;
+    if(paused){scheduleAutoBall(1000);return;}
+    if(phase!=='idle'||ballBusy)return;
+    if(!userBattingNow())return;
+    startBall();
+  },ms);
+}
 // ---------- Ball sequence ----------
 function startBall(){
-  if(ballBusy)return;ballBusy=true;unlockAudio();
+  if(ballBusy)return;clearAutoTimer();ballBusy=true;unlockAudio();
   $('stats-overlay').classList.add('hidden');$('scorecard-wrap').classList.add('hidden');
   const badge=$('replay-badge');if(badge)badge.classList.add('hidden');
   const sk=$('btn-skip-replay');if(sk)sk.classList.add('hidden');
@@ -480,7 +529,7 @@ function finishTravel(){
     anim.type='runout';anim.fielder=f;anim.throwFrom=V3(f.home.x,1.0,f.home.z);
     anim.to=V3(0,0.4,10);anim.arc=1.0;anim.arrive=0.9;anim.dur=2.0;anim.runs=1;
   }
-  else if(res.runs===4){const bp=boundaryPoint(dir);anim.type='four';anim.bp=bp;anim.to=V3(bp.x,0.14,bp.z);anim.arc=0.8;anim.arrive=1;anim.dur=1.7;
+  else if(res.runs===4){const bp=boundaryPoint(dir);anim.type='four';anim.bp=bp;anim.to=V3(bp.x,0.09,bp.z);anim.arc=0.8;anim.arrive=1;anim.dur=1.7;
     const near=nearestTo(bp);anim.backup={fig:near[0].fig,home:near[0].home,to:V3(bp.x*0.8,0,bp.z*0.8)};}
   else if(res.runs===6){const bp=boundaryPoint(dir);anim.type='six';anim.bp=bp;anim.to=V3(bp.x*1.1,0.5,bp.z*1.1);anim.arc=11;anim.arrive=1;anim.dur=1.9;
     const near=nearestTo(bp);anim.backup={fig:near[0].fig,home:near[0].home,to:V3(bp.x*0.8,0,bp.z*0.8)};}
@@ -532,16 +581,20 @@ function endBall(){
         strikerFig=batFigA;nonStrikerFig=batFigB;
         resetBall();renderAll();updateControls();setCam('broadcast');
         say(`🏏 Second innings: ${batFirst.name} need ${target} to win.`);
+        if(userBattingNow()&&autoBowl)scheduleAutoBall(2500);
       },2600);
     } else {
       endMatch();
     }
   } else {
     resetBall();renderAll();updateControls();
+    // Next ball arrives on its own (batting mode) after a short pause.
+    if(userBattingNow()&&autoBowl)scheduleAutoBall(2500);
   }
   ballBusy=false;ballData=null;
 }
 function endMatch(){
+  clearAutoTimer();
   const [i1,i2]=M.innings;
   let title,sub;
   if(i1.score>i2.score){const m=i1.score-i2.score;title=`${i1.batTeam.name} win by ${m} run${m>1?'s':''}!`;sub=`${i1.batTeam.name} ${i1.score}/${i1.wkts} beat ${i2.batTeam.name} ${i2.score}/${i2.wkts}`;}
@@ -576,14 +629,15 @@ $('btn-close-stats').onclick=()=>{$('stats-overlay').classList.add('hidden');};
   base.addEventListener('pointerup',()=>{drag=false;});
 })();
 $('btn-bowl-ball').onclick=startBall;$('btn-bowl-delivery').onclick=startBall;$('btn-hit').onclick=onHit;
+$('btn-auto-toggle').onclick=()=>{autoBowl=!autoBowl;clearAutoTimer();updateControls();if(autoBowl&&phase==='idle'&&userBattingNow()&&!ballBusy)scheduleAutoBall(1000);};
 $('btn-skip-replay').onclick=()=>{if(phase==='replay')endReplay();};
 $('btn-pause').onclick=()=>{paused=!paused;$('btn-pause').textContent=paused?'▶':'⏸';};
 $('btn-sound').onclick=()=>{soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in window))speechSynthesis.cancel();if(crowdGain)crowdGain.gain.value=soundOn?0.035:0;$('btn-sound').textContent=soundOn?'🔊':'🔇';};
 $('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,3):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 High':'🎞 Low';};
 $('btn-cam').onclick=()=>{const order=['broadcast','side','wide','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
 $('btn-scorecard').onclick=()=>{$('scorecard-wrap').classList.toggle('hidden');renderScorecard();};
-$('btn-rematch').onclick=()=>{document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';};
-$('btn-home').onclick=()=>{document.body.classList.remove('in-match');showScreen('screen-home');renderTeams();};
+$('btn-rematch').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';};
+$('btn-home').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');showScreen('screen-home');renderTeams();};
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'){e.preventDefault();if(phase==='replay')endReplay();else if(phase==='travel')onHit();else if(phase==='idle')startBall();}
   if(e.code==='Digit1')document.querySelector('[data-shot="defend"]')?.click();
@@ -664,8 +718,8 @@ function updatePhase(){
     } else {
       ballGrp.position.lerpVectors(a.from,a.to,q);
       if(a.type==='four'){
-        if(q<0.45){const u=q/0.45;ballGrp.position.y=a.from.y+(0.14-a.from.y)*u+0.6*Math.sin(Math.PI*u);}
-        else ballGrp.position.y=0.14;
+        if(q<0.45){const u=q/0.45;ballGrp.position.y=a.from.y+(0.09-a.from.y)*u+0.6*Math.sin(Math.PI*u);}
+        else ballGrp.position.y=0.09;
       } else {
         ballGrp.position.y=a.from.y+(a.to.y-a.from.y)*q+a.arc*Math.sin(Math.PI*q);
       }
@@ -780,7 +834,10 @@ function loop(){
   if(!paused)gameTime+=dt;
   const ww=wrap.clientWidth,hh=wrap.clientHeight||500;
   if(ww>0&&Math.abs(camera.aspect-ww/hh)>0.001)resize();
-  updatePhase();
+  // One bad frame must never kill the render loop.
+  try{updatePhase();}catch(err){console.error('phase error',err);}
+  // A broken (non-finite) ball position is hidden, never rendered as NaN.
+  if(ballGrp.visible){const p=ballGrp.position;if(![p.x,p.y,p.z].every(Number.isFinite))ballGrp.visible=false;}
   // Record the live ball frame-by-frame so replays show the real event,
   // not a regenerated one: ball path + bowler, batters, keeper, chaser.
   if(ballData&&(phase==='runup'||phase==='deliver'||phase==='travel'||phase==='result')){
@@ -806,9 +863,23 @@ function loop(){
     markerMesh.visible=show;
     if(show)markerMesh.position.set(joyX*1.2,0.06,currentBounceZ());
   }
+  // Camera safety (the disappearing-ground fix): a tracking/boundary
+  // camera must never survive into idle — idle always shows a real ground
+  // camera, and a non-finite target can never poison the camera position
+  // (NaN lerps stay NaN forever, which renders as pure sky).
+  if(phase==='idle'){
+    if(camMode==='follow'||!CAMS[camMode])camTarget=CAMS.broadcast;
+    else camTarget=CAMS[camMode];
+  }
   // camera smoothing
   let targetPos=camTarget.pos,targetLook=camTarget.look;
   if(camMode==='follow'&&ballGrp.visible){targetPos=V3(ballGrp.position.x*0.55,7.5,ballGrp.position.z-13);targetLook=ballGrp.position.clone();}
+  if(![targetPos.x,targetPos.y,targetPos.z,targetLook.x,targetLook.y,targetLook.z].every(Number.isFinite)){
+    camTarget=CAMS.broadcast;targetPos=CAMS.broadcast.pos;targetLook=CAMS.broadcast.look;
+  }
+  if(![camPos.x,camPos.y,camPos.z,camLook.x,camLook.y,camLook.z].every(Number.isFinite)){
+    camPos.copy(CAMS.broadcast.pos);camLook.copy(CAMS.broadcast.look);
+  }
   camPos.lerp(targetPos,0.06);camLook.lerp(targetLook,0.08);
   camera.position.copy(camPos);camera.lookAt(camLook);
   renderer.render(scene,camera);
