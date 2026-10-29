@@ -6,6 +6,7 @@
 <title>Cricket Clash 3D — Realistic 3D Cricket</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#07130c;color:#eafff0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body.in-match{overflow:hidden}
 header{padding:14px 16px;background:#0b1f16;border-bottom:2px solid #2a4a38;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .logo{font-size:1.6rem;font-weight:900}.logo span{color:#ffd700}.tag{font-size:.8rem;color:#9fd8b0}
 main{max-width:1100px;margin:0 auto;padding:14px}
@@ -20,35 +21,68 @@ h2{margin:10px 0}.note{font-size:.85rem;color:#bfe8cd;background:#12291d;border:
 .pill.active{background:#ffd700;color:#111;border-color:#ffd700}
 .btn-big{display:block;width:100%;padding:16px;background:#16a34a;color:#fff;border:none;border-radius:12px;font-size:1.2rem;font-weight:800;cursor:pointer;margin:12px 0}
 .btn-big:disabled{opacity:.5}.btn-sec{background:#1e3a2f;color:#eafff0;border:1px solid #2a4a38;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}
-#scene-wrap{position:relative;border:2px solid #2a4a38;border-radius:14px;overflow:hidden;background:#0a2a16}
-#scene-wrap canvas{display:block;width:100%;height:62vh;min-height:420px}
-.big-text{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:3rem;font-weight:900;color:#ffd700;text-shadow:0 3px 0 #000,0 0 24px #000;pointer-events:none}
 .hidden{display:none!important}
-.scorebug{display:flex;align-items:stretch;flex-wrap:wrap;border-radius:10px;overflow:hidden;margin-top:10px;background:#0b1f16;border:1px solid #2a4a38}
-.sb-left,.sb-right{display:flex;align-items:center;gap:6px;padding:8px 10px;font-size:1.05rem;color:#fff}
-.sb-right{margin-left:auto}.sb-mid,.sb-mid2{display:flex;align-items:center;gap:6px;padding:6px 8px;font-size:.85rem;min-width:0}
-.sb-face{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#334155;color:#fff;font-size:.7rem;font-weight:700;flex:none}
+/* ===== Single-screen match shell ===== */
+#screen-match.active{position:fixed;inset:0;width:100vw;height:100dvh;z-index:50;display:flex;flex-direction:column;background:#07130c;overflow:hidden}
+.top-hud{display:flex;flex-direction:column;gap:2px;padding:8px;background:#0b1f16;border-bottom:1px solid #2a4a38;flex:none}
+.top-hud-row{display:flex;gap:8px;align-items:stretch}
+.scorebug{display:flex;align-items:stretch;flex-wrap:wrap;border-radius:10px;overflow:hidden;background:#0b1f16;border:1px solid #2a4a38;flex:1;min-width:0}
+.sb-left,.sb-right{display:flex;align-items:center;gap:6px;padding:6px 10px;font-size:1rem;color:#fff}
+.sb-right{margin-left:auto}.sb-mid,.sb-mid2{display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:.82rem;min-width:0}
+.sb-face{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#334155;color:#fff;font-size:.68rem;font-weight:700;flex:none}
 .sb-pname{white-space:normal;overflow-wrap:anywhere}
-.sb-sub{font-size:.85rem;color:#bfe8cd;margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.panels{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.panel{background:#12291d;border:1px solid #2a4a38;border-radius:12px;padding:10px}
-.panel h3{margin:0 0 6px;font-size:.95rem}
-.controls{background:#12291d;border:1px solid #2a4a38;border-radius:12px;padding:12px;margin-top:10px}
-.ctrl-title{margin:0 0 6px;color:#bfe8cd}
-#timing-box{background:#0b1f16;border:2px solid #ffd700;border-radius:12px;padding:10px;margin:10px 0}
-.timing-bar{position:relative;height:18px;background:#1e3a2f;border-radius:9px;overflow:hidden}
+.sb-sub{font-size:.75rem;color:#bfe8cd;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 2px}
+.icon-btn{min-width:46px;border-radius:10px;border:1px solid #2a4a38;background:#1e3a2f;color:#eafff0;font-size:1.05rem;cursor:pointer}
+#scene-wrap{position:relative;flex:1;min-height:0;overflow:hidden;background:#0a2a16}
+#scene-wrap canvas{display:block;width:100%;height:100%}
+.big-text{position:absolute;left:0;right:0;top:30%;text-align:center;font-size:3rem;font-weight:900;color:#ffd700;text-shadow:0 3px 0 #000,0 0 24px #000;pointer-events:none;z-index:4}
+/* overlays */
+.overlay{position:absolute;z-index:5}
+#joystick-wrap{left:14px;bottom:52px;text-align:center}
+#joystick-base{width:112px;height:112px;border-radius:50%;background:rgba(10,25,16,.55);border:2px solid rgba(255,255,255,.35);backdrop-filter:blur(2px);position:relative;touch-action:none;cursor:pointer}
+#joystick-knob{width:48px;height:48px;border-radius:50%;background:rgba(255,215,0,.9);border:2px solid #fff;position:absolute;left:32px;top:32px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+#joy-caption{font-size:.7rem;color:#eafff0;text-shadow:0 1px 2px #000;margin-top:4px}
+#joy-arrow{font-size:1rem;color:#ffd700;text-shadow:0 1px 2px #000;height:18px}
+#bat-overlay{right:12px;bottom:52px;width:216px;background:rgba(10,25,16,.55);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:10px;backdrop-filter:blur(2px)}
+#bowl-overlay{right:12px;bottom:52px;width:236px;background:rgba(10,25,16,.55);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:10px;backdrop-filter:blur(2px)}
+.ovl-title{font-size:.72rem;font-weight:800;letter-spacing:.06em;color:#ffd700;margin:6px 0 4px}
+.shot-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.shot-btn{padding:10px 4px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:rgba(30,58,47,.75);color:#fff;font-weight:800;font-size:.82rem;cursor:pointer}
+.shot-btn.active{background:#ffd700;color:#111;border-color:#ffd700}
+.mini-row{display:flex;gap:5px;flex-wrap:wrap}
+.mini-btn{flex:1;padding:7px 2px;border-radius:9px;border:1px solid rgba(255,255,255,.3);background:rgba(30,58,47,.75);color:#fff;font-weight:700;font-size:.72rem;cursor:pointer;white-space:nowrap}
+.mini-btn.active{background:#ffd700;color:#111;border-color:#ffd700}
+#timing-box{background:rgba(11,31,22,.85);border:2px solid #ffd700;border-radius:10px;padding:6px 8px;margin-bottom:8px;font-size:.75rem}
+.timing-bar{position:relative;height:14px;background:#1e3a2f;border-radius:7px;overflow:hidden;margin-top:4px}
 #timing-needle{position:absolute;top:0;bottom:0;width:3px;background:#fff}
 .zone-perfect{position:absolute;left:45%;width:10%;top:0;bottom:0;background:rgba(22,163,74,.55)}
 .zone-good{position:absolute;left:35%;width:30%;top:0;bottom:0;background:rgba(255,215,0,.25)}
-.btn-hit{display:block;width:100%;padding:18px;background:#dc2626;color:#fff;border:none;border-radius:12px;font-size:1.4rem;font-weight:800;cursor:pointer;margin:10px 0}
-.commentary{background:#12291d;border:1px solid #2a4a38;border-radius:12px;padding:12px;margin-top:10px}
-.commentary ul{list-style:none;padding:0;margin:0;max-height:180px;overflow:auto}
-.commentary li{padding:6px 0;border-bottom:1px solid #1e3a2f;font-size:.9rem}
+.btn-hit{display:block;width:100%;padding:14px;background:#dc2626;color:#fff;border:none;border-radius:12px;font-size:1.25rem;font-weight:800;cursor:pointer;margin-top:8px}
+#btn-bowl-ball,#btn-bowl-delivery{margin-top:8px}
+#power-meter{height:12px;background:#1e3a2f;border-radius:6px;overflow:hidden;position:relative;margin:4px 0}
+#power-needle{position:absolute;top:0;bottom:0;left:0;width:50%;background:linear-gradient(90deg,#16a34a,#ffd700,#dc2626)}
+#power-text{font-size:.72rem;color:#bfe8cd}
+#bottom-bar{position:absolute;left:0;right:0;bottom:0;height:40px;display:flex;align-items:center;gap:6px;padding:0 8px;background:rgba(0,0,0,.55);font-size:.75rem;z-index:6}
+#ticker{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#eafff0}
+.mini-icon{border:1px solid rgba(255,255,255,.3);background:rgba(30,58,47,.8);color:#fff;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:.8rem;flex:none}
+#stats-overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(10,25,16,.94);border:1px solid #2a4a38;border-radius:14px;padding:12px;z-index:8;max-width:min(94vw,560px);max-height:72dvh;overflow:auto}
+#stats-overlay .row{display:flex;gap:12px;flex-wrap:wrap}
+.panel{background:#12291d;border:1px solid #2a4a38;border-radius:12px;padding:10px}
+.panel h3{margin:0 0 6px;font-size:.95rem}
+.commentary ul{list-style:none;padding:0;margin:8px 0 0;max-height:130px;overflow:auto}
+.commentary li{padding:5px 0;border-bottom:1px solid #1e3a2f;font-size:.85rem}
+#scorecard-wrap{position:absolute;left:8px;right:8px;top:70px;bottom:48px;overflow:auto;background:rgba(10,25,16,.96);border:1px solid #2a4a38;border-radius:14px;padding:12px;z-index:8}
 table{width:100%;border-collapse:collapse;font-size:.85rem}
 th,td{padding:4px 6px;text-align:left;border-bottom:1px solid #1e3a2f}
 canvas.map{background:#0b3d1e;border-radius:8px}
-.topbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-@media(max-width:640px){.panels{grid-template-columns:1fr}.big-text{font-size:2rem}.logo{font-size:1.3rem}.sb-left,.sb-right{padding:6px 8px}.sb-mid,.sb-mid2{font-size:.75rem;padding:4px 6px}.sb-face{width:22px;height:22px}}
+@media(max-width:640px){
+  .big-text{font-size:2rem}.logo{font-size:1.3rem}
+  #joystick-base{width:92px;height:92px}#joystick-knob{width:40px;height:40px;left:26px;top:26px}
+  #bat-overlay{width:184px;padding:8px}#bowl-overlay{width:200px;padding:8px}
+  .shot-btn{font-size:.75rem;padding:8px 2px}.mini-btn{font-size:.68rem}
+  .sb-left,.sb-right{padding:5px 8px;font-size:.9rem}.sb-mid,.sb-mid2{font-size:.72rem;padding:3px 6px}.sb-face{width:22px;height:22px}
+  .icon-btn{min-width:42px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
@@ -93,69 +127,96 @@ canvas.map{background:#0b3d1e;border-radius:8px}
     <button class="btn-big hidden" id="btn-start-match">▶ Start Match</button>
   </section>
 
-  <!-- MATCH -->
+  <!-- MATCH: single unified game screen -->
   <section id="screen-match" class="screen">
-    <div class="topbar">
-      <button class="btn-sec" id="btn-pause">⏸ Pause</button>
-      <button class="btn-sec" id="btn-sound">🔊 Sound: ON</button>
-      <button class="btn-sec" id="btn-quality">🎞 Quality: High</button>
-      <button class="btn-sec" id="btn-cam">📷 Camera: Broadcast</button>
-      <button class="btn-sec" id="btn-scorecard">📋 Scorecard</button>
+    <div class="top-hud">
+      <div class="top-hud-row">
+        <div class="scorebug">
+          <div class="sb-left" id="sb-left"><b id="sb-abbr-bat"></b> <b id="sb-score2"></b> <span id="sb-overs2"></span></div>
+          <div class="sb-mid">
+            <span class="sb-face" id="sb-face1"></span><span class="sb-pname"><b id="sb-bat1"></b></span>
+            <span class="sb-face" id="sb-face2"></span><span class="sb-pname"><b id="sb-bat2"></b></span>
+          </div>
+          <div class="sb-mid2"><span class="sb-face" id="sb-bowl-face"></span><span class="sb-pname" id="sb-bowl1"></span></div>
+          <div class="sb-right" id="sb-right"><b id="sb-abbr-bowl"></b></div>
+        </div>
+        <button class="icon-btn" id="btn-pause" title="Pause">⏸</button>
+        <button class="icon-btn" id="btn-cam" title="Camera">📷</button>
+      </div>
+      <div class="sb-sub"><span id="sb-rr"></span> • <span id="sb-target"></span> • <span id="sb-speed"></span></div>
     </div>
+
     <div id="scene-wrap">
       <div id="big-text" class="big-text hidden"></div>
-    </div>
-    <div class="scorebug">
-      <div class="sb-left" id="sb-left"><b id="sb-abbr-bat"></b> <b id="sb-score2"></b> <span id="sb-overs2"></span></div>
-      <div class="sb-mid">
-        <span class="sb-face" id="sb-face1"></span><span class="sb-pname"><b id="sb-bat1"></b></span>
-        <span class="sb-face" id="sb-face2"></span><span class="sb-pname"><b id="sb-bat2"></b></span>
+
+      <!-- joystick: lower-left, shared (role switches automatically) -->
+      <div class="overlay" id="joystick-wrap">
+        <div id="joy-arrow">▲</div>
+        <div id="joystick-base"><div id="joystick-knob"></div></div>
+        <div id="joy-caption">Shot direction</div>
       </div>
-      <div class="sb-mid2"><span class="sb-face" id="sb-bowl-face"></span><span class="sb-pname" id="sb-bowl1"></span></div>
-      <div class="sb-right" id="sb-right"><b id="sb-abbr-bowl"></b></div>
-    </div>
-    <div class="sb-sub"><span id="sb-rr"></span> • <span id="sb-target"></span> • <span id="sb-speed"></span></div>
 
-    <div class="panels">
-      <div class="panel"><h3>🎯 Pitch map — last bounce</h3><canvas class="map" id="pitch-map" width="220" height="150"></canvas></div>
-      <div class="panel"><h3>🧭 Wagon wheel — last shot</h3><canvas class="map" id="wagon" width="220" height="150"></canvas></div>
-    </div>
-
-    <div id="timing-box" class="hidden">
-      <div>Tap HIT at the right moment! <span id="timing-hint"></span></div>
-      <div class="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
-    </div>
-
-    <div id="bat-controls" class="controls hidden">
-      <p class="ctrl-title">Choose your shot, then tap BOWL — hit the ball at the perfect moment! (Space = HIT, 1–6 = shots)</p>
-      <div class="pill-row shot-row">
-        <button class="pill shot" data-shot="defend">🛡️ Defend</button>
-        <button class="pill shot active" data-shot="drive">🏏 Front-foot Drive</button>
-        <button class="pill shot" data-shot="cut">✂️ Back-foot Cut</button>
-        <button class="pill shot" data-shot="pull">💪 Pull</button>
-        <button class="pill shot" data-shot="sweep">🧹 Sweep</button>
-        <button class="pill shot" data-shot="loft">🚀 Lofted</button>
+      <!-- batting controls: lower-right overlay -->
+      <div class="overlay hidden" id="bat-overlay">
+        <div id="timing-box" class="hidden">
+          <div>Tap HIT at the right moment! <span id="timing-hint"></span></div>
+          <div class="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
+        </div>
+        <div class="ovl-title">SHOT — tap, then BOWL (Space = HIT, 1–6 = shots)</div>
+        <div class="shot-grid">
+          <button class="shot-btn shot" data-shot="defend">🛡️ DEFEND</button>
+          <button class="shot-btn shot active" data-shot="drive">🏏 DRIVE</button>
+          <button class="shot-btn shot" data-shot="cut">✂️ CUT</button>
+          <button class="shot-btn shot" data-shot="pull">💪 PULL</button>
+          <button class="shot-btn shot" data-shot="sweep">🧹 SWEEP</button>
+          <button class="shot-btn shot" data-shot="loft">🚀 LOFT</button>
+        </div>
+        <button id="btn-bowl-ball" class="btn-big">🎳 Bowl the Ball</button>
+        <button id="btn-hit" class="btn-hit hidden">🏏 HIT!</button>
       </div>
-      <button id="btn-bowl-ball" class="btn-big">🎳 Bowl the Ball</button>
-      <button id="btn-hit" class="btn-hit hidden">🏏 HIT!</button>
-    </div>
 
-    <div id="bowl-controls" class="controls hidden">
-      <p class="ctrl-title">Pick a delivery and bowl it!</p>
-      <div class="pill-row">
-        <button class="pill delivery active" data-del="fast">⚡ Fast</button>
-        <button class="pill delivery" data-del="swing">🌪️ Swing</button>
-        <button class="pill delivery" data-del="seam">🧵 Seam</button>
-        <button class="pill delivery" data-del="yorker">🎯 Yorker</button>
-        <button class="pill delivery" data-del="bouncer">⬆️ Bouncer</button>
-        <button class="pill delivery" data-del="slower">🐢 Slower Ball</button>
-        <button class="pill delivery" data-del="spin">🌀 Spin</button>
+      <!-- bowling controls: lower-right overlay (same screen, swapped in) -->
+      <div class="overlay hidden" id="bowl-overlay">
+        <div class="ovl-title">BOWLING TYPE</div>
+        <div class="mini-row">
+          <button class="mini-btn btype active" data-btype="fast">⚡ FAST</button>
+          <button class="mini-btn btype" data-btype="swing">🌪️ SWING</button>
+          <button class="mini-btn btype" data-btype="spin">🌀 SPIN</button>
+          <button class="mini-btn btype" data-btype="slower">🐢 SLOW</button>
+        </div>
+        <div class="ovl-title">LENGTH</div>
+        <div class="mini-row">
+          <button class="mini-btn blen" data-blen="yorker">🎯 YORKER</button>
+          <button class="mini-btn blen" data-blen="full">FULL</button>
+          <button class="mini-btn blen active" data-blen="good">GOOD LENGTH</button>
+          <button class="mini-btn blen" data-blen="short">SHORT</button>
+        </div>
+        <div class="ovl-title">POWER / ACCURACY</div>
+        <div id="power-meter"><div id="power-needle"></div></div>
+        <div id="power-text">Power 50% — set by the moving meter at delivery</div>
+        <button id="btn-bowl-delivery" class="btn-big">🎳 BOWL!</button>
       </div>
-      <button id="btn-bowl-delivery" class="btn-big">🎳 Bowl!</button>
-    </div>
 
-    <div class="commentary"><h3>📻 Commentary</h3><ul id="commentary-list"></ul></div>
-    <div id="scorecard-wrap" class="hidden"></div>
+      <!-- stats overlay: pitch map + wagon wheel + commentary -->
+      <div class="overlay hidden" id="stats-overlay">
+        <div class="row">
+          <div class="panel"><h3>🎯 Pitch map — last bounce</h3><canvas class="map" id="pitch-map" width="220" height="150"></canvas></div>
+          <div class="panel"><h3>🧭 Wagon wheel — last shot</h3><canvas class="map" id="wagon" width="220" height="150"></canvas></div>
+        </div>
+        <div class="commentary"><h3>📻 Commentary</h3><ul id="commentary-list"></ul></div>
+        <button class="btn-sec" id="btn-close-stats" style="margin-top:10px">✕ Close</button>
+      </div>
+
+      <div id="scorecard-wrap" class="hidden"></div>
+
+      <div id="bottom-bar">
+        <span id="ticker">Welcome to Cricket Clash 3D.</span>
+        <button class="mini-icon" id="btn-stats" title="Pitch map, wagon wheel, commentary">📊 Stats</button>
+        <button class="mini-icon" id="btn-scorecard" title="Scorecard">📋 Scorecard</button>
+        <button class="mini-icon" id="btn-sound" title="Sound">🔊</button>
+        <button class="mini-icon" id="btn-quality" title="Quality">🎞 High</button>
+      </div>
+    </div>
   </section>
 
   <!-- RESULT -->

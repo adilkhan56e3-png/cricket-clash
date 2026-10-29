@@ -23,7 +23,7 @@ function beep(f=660,t=0.08){if(!AC||!soundOn)return;const o=AC.createOscillator(
 function crack(){if(!AC||!soundOn)return;const len=AC.sampleRate*0.12,buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);const s=AC.createBufferSource();s.buffer=buf;const g=AC.createGain();g.gain.value=0.25;s.connect(g);g.connect(AC.destination);s.start();}
 function cheer(){if(!AC||!soundOn||!crowdGain)return;const t=AC.currentTime;crowdGain.gain.cancelScheduledValues(t);crowdGain.gain.setValueAtTime(0.035,t);crowdGain.gain.linearRampToValueAtTime(0.14,t+0.3);crowdGain.gain.linearRampToValueAtTime(0.035,t+2.5);}
 function speak(txt){if(!soundOn||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(txt);u.rate=1.05;speechSynthesis.speak(u);}catch(e){}}
-function say(txt){const ul=$('commentary-list');const li=document.createElement('li');li.textContent=txt;ul.prepend(li);while(ul.children.length>40)ul.lastChild.remove();}
+function say(txt){const tk=$('ticker');if(tk)tk.textContent=txt;const ul=$('commentary-list');const li=document.createElement('li');li.textContent=txt;ul.prepend(li);while(ul.children.length>40)ul.lastChild.remove();}
 
 // ---------- Three.js setup ----------
 const wrap=$('scene-wrap');
@@ -201,6 +201,15 @@ const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(0.14,20,16),new THREE.Mes
 ballMesh.castShadow=true;ballGrp.add(ballMesh);
 const seam=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.014,8,24),new THREE.MeshStandardMaterial({color:0xffffff}));
 ballGrp.add(seam);ballGrp.visible=false;scene.add(ballGrp);
+// line-and-length pitch marker (3D, sits on the pitch while bowling)
+const markerMesh=new THREE.Group();
+const mRing=new THREE.Mesh(new THREE.RingGeometry(0.45,0.62,32),new THREE.MeshBasicMaterial({color:0xffd700,side:THREE.DoubleSide}));
+mRing.rotation.x=-Math.PI/2;markerMesh.add(mRing);
+const mDot=new THREE.Mesh(new THREE.CircleGeometry(0.13,16),new THREE.MeshBasicMaterial({color:0xdc2626,side:THREE.DoubleSide}));
+mDot.rotation.x=-Math.PI/2;mDot.position.y=0.01;markerMesh.add(mDot);
+markerMesh.visible=false;scene.add(markerMesh);
+const LEN_Z={yorker:8.6,full:7.0,good:4.5,short:1.2};
+const currentBounceZ=()=>Math.max(0.5,Math.min(9.0,(LEN_Z[bowlLength]??4.5)+joyY*1.5));
 // ---------- Cameras ----------
 const CAMS={
   broadcast:{pos:new THREE.Vector3(0,7,-30),look:new THREE.Vector3(0,1.2,6)},
@@ -209,7 +218,7 @@ const CAMS={
   closeBowl:{pos:new THREE.Vector3(-4.5,2.2,-14.5),look:new THREE.Vector3(0,1,-9.5)},
 };
 let camMode='broadcast', camTarget={...CAMS.broadcast}, camAuto=true;
-function setCam(name){camMode=name;camTarget=CAMS[name]||CAMS.broadcast;$('btn-cam').textContent='📷 Camera: '+name[0].toUpperCase()+name.slice(1);}
+function setCam(name){camMode=name;camTarget=CAMS[name]||CAMS.broadcast;const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: '+name;}}
 function trackBall(bpos){
   camTarget={pos:new THREE.Vector3(bpos.x*0.55,9,bpos.z-16),look:new THREE.Vector3(bpos.x,bpos.y,bpos.z)};
 }
@@ -217,6 +226,7 @@ function trackBall(bpos){
 // ---------- Game state ----------
 let userTeam=null,oppTeam=null,overs=5,M=null,userBatsFirst=true;
 let shot='drive',delivery='fast',ballBusy=false,paused=false,qualityHigh=true;
+let joyX=0,joyY=0,bowlType='fast',bowlLength='good',bowlPower=50,curPower=50;
 let phase='idle',phaseT0=0,gameTime=0,hitDone=false,hitP=null,lastTiming=null;
 let ballData=null,lastEv=null,lastShotDir=null,lastBounce=null,shotsLog=[];
 let strikerFig=null,nonStrikerFig=null;
@@ -311,6 +321,7 @@ $('btn-tails').onclick=()=>{const won=Math.random()<0.5;tossDone(won);if(won)$('
 $('btn-bat-first').onclick=()=>{userBatsFirst=true;$('btn-start-match').classList.remove('hidden');};
 $('btn-bowl-first').onclick=()=>{userBatsFirst=false;$('btn-start-match').classList.remove('hidden');};
 $('btn-start-match').onclick=()=>{
+  document.body.classList.add('in-match');
   showScreen('screen-match');
   const batFirst=userBatsFirst?userTeam:oppTeam, bowlFirst=userBatsFirst?oppTeam:userTeam;
   startInnings(M,batFirst,bowlFirst,null);
@@ -323,12 +334,15 @@ $('btn-start-match').onclick=()=>{
 };
 function updateControls(){
   const ub=userBattingNow();
-  $('bat-controls').classList.toggle('hidden',!ub);
-  $('bowl-controls').classList.toggle('hidden',ub);
+  $('bat-overlay').classList.toggle('hidden',!ub);
+  $('bowl-overlay').classList.toggle('hidden',ub);
   $('timing-box').classList.add('hidden');$('btn-hit').classList.add('hidden');
+  $('joy-caption').textContent=ub?'Shot direction':'Bowling direction';
+  $('btn-bowl-ball').disabled=false;$('btn-bowl-delivery').disabled=false;
 }
 function resetBall(){
   ballGrp.visible=false;phase='idle';ballBusy=false;
+  joyX=0;joyY=0;const kb=$('joystick-knob');if(kb)kb.style.transform='';const ja=$('joy-arrow');if(ja)ja.textContent='▲';
   bowlFig.group.position.set(0,0,-17);setPose(bowlFig,IDLE);
   strikerFig.group.position.set(0.95,0,8.6);strikerFig.group.rotation.y=Math.PI;setPose(strikerFig,STANCE);
   nonStrikerFig.group.position.set(-0.95,0,-8.6);nonStrikerFig.group.rotation.y=0;setPose(nonStrikerFig,IDLE);
@@ -339,14 +353,18 @@ function resetBall(){
 // ---------- Ball sequence ----------
 function startBall(){
   if(ballBusy)return;ballBusy=true;unlockAudio();
+  $('stats-overlay').classList.add('hidden');$('scorecard-wrap').classList.add('hidden');
+  const ub=userBattingNow();
+  const del=ub?['fast','swing','seam','spin','slower','yorker','bouncer'][Math.floor(Math.random()*7)]
+    :(bowlLength==='yorker'?'yorker':(bowlLength==='short'?'bouncer':bowlType));
   const inn=innNow();
   const extraRoll=Math.random();
   const extra=extraRoll<0.05?'Wide ball':(extraRoll<0.08?'No ball':null);
-  ballData={shot,userBatting:userBattingNow(),delivery,extra,
-    speed:speedFor(delivery),
-    swing:(delivery==='swing'||delivery==='seam')?(Math.random()<0.5?-1:1)*(0.8+Math.random()*0.7):(Math.random()-0.5)*0.4,
-    spinDev:delivery==='spin'?(Math.random()<0.5?-1:1)*(1.0+Math.random()*0.8):0,
-    bounceZ:delivery==='yorker'?8.6:(delivery==='bouncer'?1.2:3.5+Math.random()*2.5),
+  ballData={shot,userBatting:ub,delivery:del,extra,joyX,joyY,lineX:ub?0:joyX*1.2,
+    speed:speedFor(del),
+    swing:(del==='swing'||del==='seam')?(Math.random()<0.5?-1:1)*(0.8+Math.random()*0.7):(Math.random()-0.5)*0.4,
+    spinDev:del==='spin'?(Math.random()<0.5?-1:1)*(1.0+Math.random()*0.8):0,
+    bounceZ:ub?(del==='yorker'?8.6:(del==='bouncer'?1.2:3.5+Math.random()*2.5)):currentBounceZ(),
     wideX:extra==='Wide ball'?(Math.random()<0.5?-1:1)*2.6:0};
   hitDone=false;hitP=null;lastTiming=null;$('timing-hint').textContent='';
   $('btn-bowl-ball').disabled=true;$('btn-bowl-delivery').disabled=true;
@@ -361,6 +379,7 @@ function deliveryPath(p,bd){
   if(p<tb){const u=p/tb;y=2.3*(1-u)+0.1*Math.sin(Math.PI*u);x=bd.swing*Math.sin(Math.PI*p*0.9)*(p/tb);}
   else{const u=(p-tb)/(1-tb);const bh=bd.delivery==='yorker'?0.25:(bd.delivery==='bouncer'?1.5:0.75);y=0.9*u+bh*Math.sin(Math.PI*u);x=bd.swing*Math.sin(Math.PI*0.9)+bd.spinDev*u+bd.wideX*u;}
   if(bd.wideX)x=bd.wideX*p+bd.swing*Math.sin(Math.PI*p*0.9)*0.3;
+  else x+=(bd.lineX||0)*p;
   return V3(x,y,z);
 }
 function onHit(){
@@ -391,7 +410,7 @@ function finishTravel(){
   lastEv=ev;
   // shot direction for animation + wagon wheel
   let dir;
-  if(ballData.userBatting)dir=SHOT_DIRS[ballData.shot];
+  if(ballData.userBatting){dir={...SHOT_DIRS[ballData.shot]};dir.x=Math.max(-1.4,Math.min(1.4,dir.x+(ballData.joyX||0)*0.7));dir.z=Math.max(0.1,Math.min(1.3,dir.z+(ballData.joyY||0)*0.25));}
   else dir=Object.values(SHOT_DIRS)[Math.floor(Math.random()*6)];
   if(res.runs===4||res.runs===6)dir={x:dir.x*1.2,z:dir.z};
   lastShotDir=dir;shotsLog.push({dir,runs:res.runs||0});
@@ -461,21 +480,40 @@ function endMatch(){
   if(i1.score>i2.score){const m=i1.score-i2.score;title=`${i1.batTeam.name} win by ${m} run${m>1?'s':''}!`;sub=`${i1.batTeam.name} ${i1.score}/${i1.wkts} beat ${i2.batTeam.name} ${i2.score}/${i2.wkts}`;}
   else if(i2.score>i1.score){const w=10-i2.wkts;title=`${i2.batTeam.name} win by ${w} wicket${w>1?'s':''}!`;sub=`${i2.batTeam.name} ${i2.score}/${i2.wkts} beat ${i1.batTeam.name} ${i1.score}/${i1.wkts}`;}
   else{title=`Match tied!`;sub=`${i1.batTeam.name} ${i1.score}/${i1.wkts} — ${i2.batTeam.name} ${i2.score}/${i2.wkts}`;}
+  document.body.classList.remove('in-match');
   const mom=manOfMatch(M);
   $('result-title').textContent=title;$('result-sub').textContent=sub+(mom?` • 🏆 Player of the Match: ${mom.n}`:'');
   renderScorecard();showScreen('screen-result');cheer();
 }
 // ---------- Controls wiring ----------
 document.querySelectorAll('.shot').forEach(b=>b.onclick=()=>{document.querySelectorAll('.shot').forEach(x=>x.classList.remove('active'));b.classList.add('active');shot=b.dataset.shot;unlockAudio();});
-document.querySelectorAll('.delivery').forEach(b=>b.onclick=()=>{document.querySelectorAll('.delivery').forEach(x=>x.classList.remove('active'));b.classList.add('active');delivery=b.dataset.del;unlockAudio();});
+document.querySelectorAll('.btype').forEach(b=>b.onclick=()=>{document.querySelectorAll('.btype').forEach(x=>x.classList.remove('active'));b.classList.add('active');bowlType=b.dataset.btype;unlockAudio();});
+document.querySelectorAll('.blen').forEach(b=>b.onclick=()=>{document.querySelectorAll('.blen').forEach(x=>x.classList.remove('active'));b.classList.add('active');bowlLength=b.dataset.blen;unlockAudio();});
+$('btn-stats').onclick=()=>{$('stats-overlay').classList.toggle('hidden');};
+$('btn-close-stats').onclick=()=>{$('stats-overlay').classList.add('hidden');};
+(function initJoystick(){
+  const base=$('joystick-base'),knob=$('joystick-knob'),arrow=$('joy-arrow');if(!base)return;
+  let drag=false;
+  const upd=e=>{const r=base.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    let dx=e.clientX-cx,dy=e.clientY-cy;const m=Math.hypot(dx,dy),max=32;
+    if(m>max){dx=dx/m*max;dy=dy/m*max;}
+    knob.style.transform=`translate(${dx}px,${dy}px)`;
+    joyX=dx/max;joyY=-dy/max;
+    const a=Math.atan2(joyY,joyX);
+    arrow.textContent=Math.abs(joyX)<0.25&&Math.abs(joyY)<0.25?'▲':(a>=-0.4&&a<0.4?'▶':(a>=0.4&&a<1.2?'◗':(a>=1.2&&a<1.9?'▲':(a>=1.9||a<-1.9?'◖':(a>=-1.9&&a<-1.2?'▼':'◗')))));
+  };
+  base.addEventListener('pointerdown',e=>{drag=true;base.setPointerCapture(e.pointerId);upd(e);});
+  base.addEventListener('pointermove',e=>{if(drag)upd(e);});
+  base.addEventListener('pointerup',()=>{drag=false;});
+})();
 $('btn-bowl-ball').onclick=startBall;$('btn-bowl-delivery').onclick=startBall;$('btn-hit').onclick=onHit;
-$('btn-pause').onclick=()=>{paused=!paused;$('btn-pause').textContent=paused?'▶ Resume':'⏸ Pause';};
-$('btn-sound').onclick=()=>{soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in window))speechSynthesis.cancel();if(crowdGain)crowdGain.gain.value=soundOn?0.035:0;$('btn-sound').textContent=soundOn?'🔊 Sound: ON':'🔇 Sound: OFF';};
-$('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,2):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 Quality: High':'🎞 Quality: Low';};
-$('btn-cam').onclick=()=>{const order=['broadcast','side','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;if(nx==='follow')$('btn-cam').textContent='📷 Camera: Follow';else setCam(nx);};
+$('btn-pause').onclick=()=>{paused=!paused;$('btn-pause').textContent=paused?'▶':'⏸';};
+$('btn-sound').onclick=()=>{soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in window))speechSynthesis.cancel();if(crowdGain)crowdGain.gain.value=soundOn?0.035:0;$('btn-sound').textContent=soundOn?'🔊':'🔇';};
+$('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,2):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 High':'🎞 Low';};
+$('btn-cam').onclick=()=>{const order=['broadcast','side','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
 $('btn-scorecard').onclick=()=>{$('scorecard-wrap').classList.toggle('hidden');renderScorecard();};
-$('btn-rematch').onclick=()=>{M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';};
-$('btn-home').onclick=()=>{showScreen('screen-home');renderTeams();};
+$('btn-rematch').onclick=()=>{document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';};
+$('btn-home').onclick=()=>{document.body.classList.remove('in-match');showScreen('screen-home');renderTeams();};
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'){e.preventDefault();if(phase==='travel')onHit();else if(phase==='idle')startBall();}
   if(e.code==='Digit1')document.querySelector('[data-shot="defend"]')?.click();
@@ -498,7 +536,18 @@ function updatePhase(){
     const s=Math.sin(gameTime*14);
     setPose(bowlFig,{lLx:s*0.8,lLk:-0.6,lRx:-s*0.8,lRk:-0.6,aLx:-s*0.6,aRx:s*0.6,hipsY:0.98});
     ballGrp.visible=false;
-    if(p>=1){phase='deliver';phaseT0=gameTime;}
+    if(ballData&&!ballData.userBatting){
+      curPower=Math.round((Math.sin(gameTime*5)+1)/2*100);
+      const pn=$('power-needle');if(pn)pn.style.width=curPower+'%';
+      const pt=$('power-text');if(pt)pt.textContent=`Power ${curPower}% — set by the moving meter at delivery`;
+    }
+    if(p>=1){
+      if(ballData&&!ballData.userBatting){
+        bowlPower=curPower;ballData.speed=Math.round(speedFor(ballData.delivery)*(0.85+bowlPower/100*0.3));
+        if(bowlPower>90||bowlPower<25)ballData.swing+=(Math.random()-0.5)*1.0;
+        const ss=$('sb-speed');if(ss)ss.textContent=`Ball speed ${ballData.speed} km/h`;
+      }
+      phase='deliver';phaseT0=gameTime;}
   } else if(phase==='deliver'){
     const p=Math.min(1,(gameTime-phaseT0)/0.45);
     bowlFig.group.position.z=-11+1.5*p;
@@ -565,6 +614,11 @@ function loop(){
   const ww=wrap.clientWidth,hh=wrap.clientHeight||500;
   if(ww>0&&Math.abs(camera.aspect-ww/hh)>0.001)resize();
   updatePhase();
+  if(markerMesh){
+    const show=!!(M&&!userBattingNow()&&(phase==='idle'||phase==='runup'||phase==='deliver'));
+    markerMesh.visible=show;
+    if(show)markerMesh.position.set(joyX*1.2,0.06,currentBounceZ());
+  }
   // camera smoothing
   let targetPos=camTarget.pos,targetLook=camTarget.look;
   if(camMode==='follow'&&ballGrp.visible){targetPos=V3(ballGrp.position.x*0.55,9,ballGrp.position.z-16);targetLook=ballGrp.position.clone();}
