@@ -250,7 +250,12 @@ function startReplay(){
 function endReplay(){
   const badge=$('replay-badge');if(badge)badge.classList.add('hidden');
   const sk=$('btn-skip-replay');if(sk)sk.classList.add('hidden');
+  // Return to the live broadcast view at once, not on the next delivery.
+  setCam('broadcast');
   endBall();
+  // Clear the stale REPLAY line from the ticker; show the live score.
+  const inn=innNow();
+  if(inn){const tk=$('ticker');if(tk)tk.textContent=`🏏 Live: ${inn.batTeam.name} ${inn.score}/${inn.wkts} (${fmtOvers(inn.balls)} ov)`;}
 }
 let strikerFig=null,nonStrikerFig=null;
 const SHOT_DIRS={drive:{x:0.25,z:1},cut:{x:1,z:0.15},pull:{x:-1,z:0.1},sweep:{x:-0.8,z:0.6},loft:{x:0.35,z:1},defend:{x:0,z:0.2}};
