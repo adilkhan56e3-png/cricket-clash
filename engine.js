@@ -116,6 +116,14 @@ export function battingOutcome(bat,bowl,timing,shot,delivery){
   if(shot==='loft'){w[6]+=6;w.W+=5;w[1]-=4;}
   if(shot==='defend'){w[0]+=14;w[4]-=8;w[6]-=5;w.W-=3;}
   if(shot==='cut'||shot==='pull'){w[4]+=4;}
+  if(shot==='flick'){w[1]+=6;w[4]+=2;}
+  if(shot==='slog'){w[6]+=6;w.W+=5;}
+  // Shot-vs-delivery realism: sweeping or lofting a yorker is dangerous,
+  // driving a bouncer is dangerous, pulling a bouncer is the right shot.
+  if(delivery==='yorker'&&(shot==='sweep'||shot==='loft'||shot==='slog'))w.W+=4;
+  if(delivery==='bouncer'&&shot==='drive')w.W+=3;
+  if(delivery==='bouncer'&&shot==='pull')w[4]+=3;
+  if(delivery==='spin'&&shot==='sweep')w[4]+=2;
   if(timing==='perfect'){w[4]+=9;w[6]+=7;w.W=Math.max(1,w.W-7);}
   else if(timing==='good'){w[4]+=3;w[6]+=2;}
   else if(timing==='early'||timing==='late'){w.W+=9;w[4]=Math.max(0,w[4]-5);w[6]=Math.max(0,w[6]-3);}

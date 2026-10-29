@@ -298,7 +298,26 @@ function endReplay(){
   if(inn){const tk=$('ticker');if(tk)tk.textContent=`🏏 Live: ${inn.batTeam.name} ${inn.score}/${inn.wkts} (${fmtOvers(inn.balls)} ov)`;}
 }
 let strikerFig=null,nonStrikerFig=null;
-const SHOT_DIRS={drive:{x:0.25,z:1},cut:{x:1,z:0.15},pull:{x:-1,z:0.1},sweep:{x:-0.8,z:0.6},loft:{x:0.35,z:1},defend:{x:0,z:0.2}};
+const SHOT_DIRS={drive:{x:0.25,z:1},cut:{x:1,z:0.15},pull:{x:-1,z:0.1},sweep:{x:-0.8,z:0.6},loft:{x:0.35,z:1},defend:{x:0,z:0.2},flick:{x:-0.5,z:0.5},slog:{x:-1,z:0.4}};
+// Every shot has its own visible identity: bat angle, body height,
+// torso turn, arm arc and footwork — so a CUT never looks like a LOFT.
+// batX/aRx accept [from,to] interpolated by the swing progress s.
+const SHOT_SWING={
+  defend:{label:'Forward Defence',batX:[-0.5,-1.1],batZ:0.15,lean:0.5,hipsY:0.98,rot:0.1,aRx:[-0.5,-0.9],aRe:[-0.9,-0.7],aLx:[-0.3,-0.5],foot:-0.45},
+  drive:{label:'Cover Drive',batX:[-0.5,-2.4],batZ:0.3,lean:0.5,hipsY:0.98,rot:0.3,aRx:[-0.5,-2.0],aRe:[-0.9,-0.3],aLx:[-0.3,-0.8],foot:-0.45},
+  cut:{label:'Square Cut',batX:-0.3,batZ:1.35,lean:0.2,hipsY:0.98,rot:0.45,aRx:[-0.5,-1.2],aRe:[-0.9,-0.4],aLx:[-0.3,-0.7],foot:0.45},
+  pull:{label:'Pull Shot',batX:-0.5,batZ:1.1,lean:0.3,hipsY:0.98,rot:0.95,aRx:[-0.5,-1.6],aRe:[-0.9,-0.4],aLx:[-0.3,-0.9],foot:0.45},
+  sweep:{label:'Sweep Shot',batX:-0.9,batZ:1.25,lean:0.6,hipsY:0.62,rot:0.5,aRx:[-0.5,-1.3],aRe:[-0.9,-0.5],aLx:[-0.3,-0.7],foot:-0.15},
+  loft:{label:'Lofted Drive',batX:[-0.5,-2.9],batZ:0.2,lean:0.05,hipsY:0.98,rot:0.2,aRx:[-0.5,-2.6],aRe:[-0.9,-0.2],aLx:[-0.3,-0.9],foot:-0.45},
+  flick:{label:'Leg Glance',batX:[-0.5,-1.4],batZ:0.9,lean:0.35,hipsY:0.98,rot:-0.5,aRx:[-0.5,-1.1],aRe:[-0.9,-0.6],aLx:[-0.3,-0.6],foot:-0.45},
+  slog:{label:'Slog Sweep',batX:[-0.5,-2.7],batZ:0.9,lean:0.35,hipsY:0.98,rot:1.0,aRx:[-0.5,-2.3],aRe:[-0.9,-0.3],aLx:[-0.3,-1.0],foot:0.45},
+};
+const lv=(v,s)=>Array.isArray(v)?v[0]+(v[1]-v[0])*s:v;
+function swingPoseFor(sh,s){
+  const t=SHOT_SWING[sh]||SHOT_SWING.drive;
+  return {...STANCE,batX:lv(t.batX,s),batZ:t.batZ,lean:t.lean,hipsY:t.hipsY,hipsRotY:t.rot*s,
+    aRx:lv(t.aRx,s),aRe:lv(t.aRe,s),aLx:lv(t.aLx,s)};
+}
 const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
 function bigText(txt,ms=1800){const el=$('big-text');el.textContent=txt;el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),ms);}
 function innNow(){return M.innings[M.inn-1];}
@@ -458,7 +477,7 @@ function startBall(){
   const inn=innNow();
   const extraRoll=Math.random();
   const extra=extraRoll<0.05?'Wide ball':(extraRoll<0.08?'No ball':null);
-  const aiShot=['drive','cut','pull','sweep','loft','defend'][Math.floor(Math.random()*6)];
+  const aiShot=['drive','cut','pull','sweep','loft','defend','flick','slog'][Math.floor(Math.random()*8)];
   ballData={shot:ub?shot:aiShot,userBatting:ub,delivery:del,extra,joyX,joyY,lineX:ub?0:joyX*1.2,
     speed:speedFor(del),
     swing:(del==='swing'||del==='seam')?(Math.random()<0.5?-1:1)*(0.8+Math.random()*0.7):(Math.random()-0.5)*0.4,
@@ -510,7 +529,7 @@ function finishTravel(){
   // shot direction for animation + wagon wheel
   let dir;
   if(ballData.userBatting){dir={...SHOT_DIRS[ballData.shot]};dir.x=Math.max(-1.4,Math.min(1.4,dir.x+(ballData.joyX||0)*0.7));dir.z=Math.max(0.1,Math.min(1.3,dir.z+(ballData.joyY||0)*0.25));}
-  else dir=Object.values(SHOT_DIRS)[Math.floor(Math.random()*6)];
+  else dir={...SHOT_DIRS[ballData.shot]};
   if(res.runs===4||res.runs===6)dir={x:dir.x*1.2,z:dir.z};
   lastShotDir=dir;
   if(!res.byes){shotsLog.push({dir,runs:res.runs||0});}
@@ -562,16 +581,19 @@ function finishTravel(){
   ballData.anim=anim;ballData.res=res;
   phase='result';phaseT0=gameTime;
   $('timing-box').classList.add('hidden');$('btn-hit').classList.add('hidden');
-  // overlays + sound + camera
+  // overlays + sound + camera — every result names the shot played, so it
+  // is unmistakable which shot was hit, not just that runs came.
+  const shotLabel=SHOT_SWING[ballData.shot]?.label||ballData.shot;
+  const playedShot=ballData.userBatting?hitDone:true;
   if(res.out){
     bigText('WICKET! ☝️',2000);cheer();speak(`Wicket! ${res.how}! The crowd goes wild!`);
-    say(`☝️ WICKET! ${ev.outBatter} ${ev.howTxt}. ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
+    say(`☝️ WICKET! ${ev.outBatter} ${ev.howTxt}${playedShot?` — ${shotLabel} attempted`:''}. ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
     if(camMode==='broadcast')setCam('closeBat');
   } else if(res.byes){say(`↪️ ${res.byeType==='legbyes'?'Leg byes':'Byes'}: ${res.runs} run${res.runs>1?'s':''}. ${inn.score}/${inn.wkts}`);}
-  else if(res.runs===4){bigText('FOUR! 💥',1800);crack();cheer();speak('What a shot! Four runs!');say(`💥 FOUR! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,1,10));}
-  else if(res.runs===6){bigText('SIX! 🚀',1800);crack();cheer();speak('Huge six! That has gone all the way!');say(`🚀 SIX! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,4,10));}
-  else if(res.runs>0){crack();say(`🏃 ${res.runs} run${res.runs>1?'s':''} — ${ballData.anim.chaserName||'Fielder'} fields it. ${inn.score}/${inn.wkts}`);}
-  else if(!res.extra){say(`Dot ball. Good bowling. ${inn.score}/${inn.wkts}`);}
+  else if(res.runs===4){bigText(`${shotLabel} — FOUR! 💥`,1800);crack();cheer();speak(`${shotLabel}! Four runs!`);say(`💥 ${shotLabel} — FOUR! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,1,10));}
+  else if(res.runs===6){bigText(`${shotLabel} — SIX! 🚀`,1800);crack();cheer();speak(`${shotLabel}! Huge six!`);say(`🚀 ${shotLabel} — SIX! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,4,10));}
+  else if(res.runs>0){crack();say(`🏃 ${shotLabel} — ${res.runs} run${res.runs>1?'s':''} — ${ballData.anim.chaserName||'Fielder'} fields it. ${inn.score}/${inn.wkts}`);}
+  else if(!res.extra){say(`${playedShot?shotLabel+' — ':''}Dot ball. Good bowling. ${inn.score}/${inn.wkts}`);}
   renderAll();renderScorecard();
 }
 function boundaryPoint(dir){
@@ -661,6 +683,8 @@ document.addEventListener('keydown',e=>{
   if(e.code==='Digit4')document.querySelector('[data-shot="pull"]')?.click();
   if(e.code==='Digit5')document.querySelector('[data-shot="sweep"]')?.click();
   if(e.code==='Digit6')document.querySelector('[data-shot="loft"]')?.click();
+  if(e.code==='Digit7')document.querySelector('[data-shot="flick"]')?.click();
+  if(e.code==='Digit8')document.querySelector('[data-shot="slog"]')?.click();
   if(e.code==='KeyP')$('btn-pause').click();
 });
 // ---------- Animation loop ----------
@@ -702,27 +726,20 @@ function updatePhase(){
     // Bowler follow-through: keeps moving toward the batsman after release.
     bowlFig.group.position.z=-9.5+3*p;
     setPose(bowlFig,{aRx:0.9,aRe:-0.2,hipsY:0.98});
-    // Batting footwork: front-foot shots step toward the bowler, back-foot
-    // shots step back, synced to the ball arriving at the crease.
+    // Batting footwork: each shot steps its own way, synced to the ball
+    // arriving at the crease (front-foot shots step toward the bowler).
     const fwShot=ballData.shot||'drive';
-    const front=(fwShot==='drive'||fwShot==='loft'||fwShot==='defend');
-    const fw=(front?-0.45:0.45)*Math.min(1,Math.max(0,(p-0.5)/0.3));
+    const fw=(SHOT_SWING[fwShot]?.foot??0.45)*Math.min(1,Math.max(0,(p-0.5)/0.3));
     strikerFig.group.position.z=8.6+fw;
-    // Bat meets ball at contact with a FULL-BODY swing: torso twists,
-    // arms swing through, bat arcs — visible from broadcast distance.
-    // (The old bat-only rotation was invisible from the camera, which is
-    // why shots looked like they happened by themselves.)
+    // Bat meets ball at contact with the SHOT's own full-body swing:
+    // a CUT is flat and sideways, a SWEEP kneels low, a LOFT finishes
+    // high, a PULL/SLOG turns the whole body — never one generic swing.
     let swingPose=null;
-    const swingFrom=s=>{
-      const v=Math.sin(Math.PI*s);
-      return {...STANCE,batX:-0.5-2.1*v,batZ:0.4,lean:0.4,hipsRotY:0.55*v,
-        aRx:-0.5-1.7*v,aRe:-0.9+0.7*v,aLx:-0.3-0.8*v};
-    };
     if(ballData.userBatting&&hitDone){
       const sw=(p-hitP)/0.45;
-      if(sw>=0&&sw<=1)swingPose=swingFrom(sw);
+      if(sw>=0&&sw<=1)swingPose=swingPoseFor(ballData.shot,Math.sin(Math.PI*sw));
     } else if(!ballData.userBatting&&p>0.75&&p<1.0){
-      swingPose=swingFrom((p-0.75)/0.25);
+      swingPose=swingPoseFor(ballData.shot,Math.sin(Math.PI*(p-0.75)/0.25));
     }
     setPose(strikerFig,swingPose||STANCE);
     if(p>=1)finishTravel();
