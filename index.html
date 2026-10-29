@@ -36,6 +36,8 @@ h2{margin:10px 0}.note{font-size:.85rem;color:#bfe8cd;background:#12291d;border:
 #scene-wrap{position:relative;flex:1;min-height:0;overflow:hidden;background:#0a2a16}
 #scene-wrap canvas{display:block;width:100%;height:100%}
 .big-text{position:absolute;left:0;right:0;top:30%;text-align:center;font-size:3rem;font-weight:900;color:#ffd700;text-shadow:0 3px 0 #000,0 0 24px #000;pointer-events:none;z-index:4}
+#replay-badge{position:absolute;left:50%;transform:translateX(-50%);top:12px;padding:8px 18px;background:rgba(220,38,38,.9);color:#fff;border:2px solid #ffd700;border-radius:999px;font-weight:900;font-size:.95rem;letter-spacing:.08em;z-index:9;pointer-events:none;text-shadow:0 1px 2px #000}
+#btn-skip-replay{position:absolute;left:50%;transform:translateX(-50%);top:54px;padding:9px 18px;background:rgba(10,25,16,.85);color:#fff;border:2px solid rgba(255,255,255,.5);border-radius:999px;font-weight:800;font-size:.85rem;cursor:pointer;z-index:9}
 /* overlays */
 .overlay{position:absolute;z-index:5}
 #joystick-wrap{left:14px;bottom:52px;text-align:center}
@@ -148,6 +150,8 @@ canvas.map{background:#0b3d1e;border-radius:8px}
 
     <div id="scene-wrap">
       <div id="big-text" class="big-text hidden"></div>
+      <div id="replay-badge" class="hidden">▶ REPLAY<span id="replay-slow"></span></div>
+      <button id="btn-skip-replay" class="hidden">⏭ Skip Replay</button>
 
       <!-- joystick: lower-left, shared (role switches automatically) -->
       <div class="overlay" id="joystick-wrap">

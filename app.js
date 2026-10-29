@@ -214,6 +214,7 @@ const currentBounceZ=()=>Math.max(0.5,Math.min(9.0,(LEN_Z[bowlLength]??4.5)+joyY
 const CAMS={
   broadcast:{pos:new THREE.Vector3(0,7,-30),look:new THREE.Vector3(0,1.2,6)},
   side:{pos:new THREE.Vector3(28,4,2),look:new THREE.Vector3(0,1,2)},
+  wide:{pos:new THREE.Vector3(0,26,-48),look:new THREE.Vector3(0,0,0)},
   closeBat:{pos:new THREE.Vector3(4.5,2.2,14.5),look:new THREE.Vector3(0,1,9.5)},
   closeBowl:{pos:new THREE.Vector3(-4.5,2.2,-14.5),look:new THREE.Vector3(0,1,-9.5)},
 };
@@ -229,6 +230,28 @@ let shot='drive',delivery='fast',ballBusy=false,paused=false,qualityHigh=true;
 let joyX=0,joyY=0,bowlType='fast',bowlLength='good',bowlPower=50,curPower=50;
 let phase='idle',phaseT0=0,gameTime=0,hitDone=false,hitP=null,lastTiming=null;
 let ballData=null,lastEv=null,lastShotDir=null,lastBounce=null,shotsLog=[];
+// Replay: frame-by-frame trace of the live ball (positions + actors), played
+// back verbatim after big moments. Score is never re-applied during replay.
+let replayTrace=[],replayT0=0,replaySlow=false,replayEvent=null;
+function replayWorthy(res){return !!res&&(res.runs===4||res.runs===6||!!res.out);}
+function startReplay(){
+  if(!replayTrace.length){endBall();return;}
+  const res=ballData.res;
+  replayEvent={type:ballData.anim?ballData.anim.type:'',res};
+  replaySlow=(res.runs===6||!!res.out);
+  ballData.replayDone=true;
+  phase='replay';replayT0=gameTime;
+  const badge=$('replay-badge'),slow=$('replay-slow');
+  if(badge){badge.classList.remove('hidden');}
+  if(slow){slow.textContent=replaySlow?' • SLOW MOTION':'';}
+  const sk=$('btn-skip-replay');if(sk)sk.classList.remove('hidden');
+  say(`📺 REPLAY — ${replaySlow?'slow motion, ':''}the exact delivery, just as it happened.`);
+}
+function endReplay(){
+  const badge=$('replay-badge');if(badge)badge.classList.add('hidden');
+  const sk=$('btn-skip-replay');if(sk)sk.classList.add('hidden');
+  endBall();
+}
 let strikerFig=null,nonStrikerFig=null;
 const SHOT_DIRS={drive:{x:0.25,z:1},cut:{x:1,z:0.15},pull:{x:-1,z:0.1},sweep:{x:-0.8,z:0.6},loft:{x:0.35,z:1},defend:{x:0,z:0.2}};
 const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
@@ -283,7 +306,7 @@ function renderScorecard(){
     inn.batsmen.forEach((b,i)=>{if(b.balls>0||b.out||i===atCrease1||i===atCrease2)
       h+=`<tr><td>${b.p.n}${(!b.out&&(i===atCrease1||i===atCrease2))?'*':''}</td><td style="opacity:.75">${b.out?b.howOut:'not out'}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${sr(b)}</td></tr>`;});
     if(inn.batsmen.some(b=>b.balls===0&&!b.out))h+=`<tr><td colspan="7" style="opacity:.75">Did not bat: ${inn.batsmen.filter(b=>b.balls===0&&!b.out).map(b=>b.p.n).join(', ')}</td></tr>`;
-    h+=`<tr><td colspan="7">Extras ${inn.extras.runs} (w ${inn.extras.wides}, nb ${inn.extras.noballs}) • Fall of wickets: ${inn.fow.map(f=>`${f.score}/${f.wkts} ${f.batter} (${f.overs})`).join(', ')||'—'}</td></tr></table>`;
+    h+=`<tr><td colspan="7">Extras ${inn.extras.runs} (w ${inn.extras.wides}, nb ${inn.extras.noballs}, b ${inn.extras.byes||0}, lb ${inn.extras.legbyes||0}) • Fall of wickets: ${inn.fow.map(f=>`${f.score}/${f.wkts} ${f.batter} (${f.overs})`).join(', ')||'—'}</td></tr></table>`;
     h+=`<table><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr>`;
     inn.bowlers.forEach(b=>{if(b.balls>0)h+=`<tr><td>${b.p.n}</td><td>${fmtOvers(b.balls)}</td><td>${b.maidens}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${econ(b)}</td></tr>`;});
     h+=`</table>`;
@@ -344,9 +367,10 @@ function resetBall(){
   ballGrp.visible=false;phase='idle';ballBusy=false;
   joyX=0;joyY=0;const kb=$('joystick-knob');if(kb)kb.style.transform='';const ja=$('joy-arrow');if(ja)ja.textContent='▲';
   bowlFig.group.position.set(0,0,-17);setPose(bowlFig,IDLE);
-  strikerFig.group.position.set(0.95,0,8.6);strikerFig.group.rotation.y=Math.PI;setPose(strikerFig,STANCE);
-  nonStrikerFig.group.position.set(-0.95,0,-8.6);nonStrikerFig.group.rotation.y=0;setPose(nonStrikerFig,IDLE);
-  fieldFigs.forEach(({fig,home})=>{fig.group.position.set(home.x,0,home.z);setPose(fig,IDLE);});
+  strikerFig.group.position.set(0.95,0,8.6);strikerFig.group.rotation.set(0,Math.PI,0);setPose(strikerFig,STANCE);
+  nonStrikerFig.group.position.set(-0.95,0,-8.6);nonStrikerFig.group.rotation.set(0,0,0);setPose(nonStrikerFig,IDLE);
+  fieldFigs.forEach(({fig,home})=>{fig.group.position.set(home.x,0,home.z);fig.group.rotation.x=0;setPose(fig,IDLE);});
+  keepFig.group.position.set(0,0,12.6);keepFig.group.rotation.y=Math.PI;
   setPose(keepFig,KEEPER);resetStumps(stumpsBat);resetStumps(stumpsBowl);
   $('btn-bowl-ball').disabled=false;$('btn-bowl-delivery').disabled=false;
 }
@@ -354,13 +378,17 @@ function resetBall(){
 function startBall(){
   if(ballBusy)return;ballBusy=true;unlockAudio();
   $('stats-overlay').classList.add('hidden');$('scorecard-wrap').classList.add('hidden');
+  const badge=$('replay-badge');if(badge)badge.classList.add('hidden');
+  const sk=$('btn-skip-replay');if(sk)sk.classList.add('hidden');
+  replayTrace=[];
   const ub=userBattingNow();
   const del=ub?['fast','swing','seam','spin','slower','yorker','bouncer'][Math.floor(Math.random()*7)]
     :(bowlLength==='yorker'?'yorker':(bowlLength==='short'?'bouncer':bowlType));
   const inn=innNow();
   const extraRoll=Math.random();
   const extra=extraRoll<0.05?'Wide ball':(extraRoll<0.08?'No ball':null);
-  ballData={shot,userBatting:ub,delivery:del,extra,joyX,joyY,lineX:ub?0:joyX*1.2,
+  const aiShot=['drive','cut','pull','sweep','loft','defend'][Math.floor(Math.random()*6)];
+  ballData={shot:ub?shot:aiShot,userBatting:ub,delivery:del,extra,joyX,joyY,lineX:ub?0:joyX*1.2,
     speed:speedFor(del),
     swing:(del==='swing'||del==='seam')?(Math.random()<0.5?-1:1)*(0.8+Math.random()*0.7):(Math.random()-0.5)*0.4,
     spinDev:del==='spin'?(Math.random()<0.5?-1:1)*(1.0+Math.random()*0.8):0,
@@ -400,7 +428,7 @@ function finishTravel(){
   } else if(ballData.userBatting){
     if(!hitDone)lastTiming='miss';
     const s=strikerRec(inn);
-    res=battingOutcome(s.p.bat,b.p.bowl,lastTiming,ballData.shot);
+    res=battingOutcome(s.p.bat,b.p.bowl,lastTiming,ballData.shot,ballData.delivery);
     ev=applyBall(M,res,0,null);
   } else {
     const s=strikerRec(inn);
@@ -413,23 +441,49 @@ function finishTravel(){
   if(ballData.userBatting){dir={...SHOT_DIRS[ballData.shot]};dir.x=Math.max(-1.4,Math.min(1.4,dir.x+(ballData.joyX||0)*0.7));dir.z=Math.max(0.1,Math.min(1.3,dir.z+(ballData.joyY||0)*0.25));}
   else dir=Object.values(SHOT_DIRS)[Math.floor(Math.random()*6)];
   if(res.runs===4||res.runs===6)dir={x:dir.x*1.2,z:dir.z};
-  lastShotDir=dir;shotsLog.push({dir,runs:res.runs||0});
+  lastShotDir=dir;
+  if(!res.byes){shotsLog.push({dir,runs:res.runs||0});}
   if(shotsLog.length>14)shotsLog.shift();
   // result animation setup
+  const nearestTo=tx=>fieldFigs.slice().sort((a,b)=>{
+    const da=(a.home.x-tx.x)**2+(a.home.z-tx.z)**2, db=(b.home.x-tx.x)**2+(b.home.z-tx.z)**2;return da-db;});
   const anim={type:'dot',from:V3(0,0.9,9.6),to:V3(0,0.9,12.6),arc:0.4,arrive:0.6,dur:1.3,catcher:null};
   if(res.extra){anim.type='wide';anim.to=V3(ballData.wideX,0.8,12.6);anim.dur=1.2;}
+  else if(res.byes){
+    anim.type='byes';anim.runs=res.runs;
+    anim.to=res.byeType==='legbyes'?V3(1.8,0.5,14):V3(-1.5,0.5,15);
+    anim.arc=0.5;anim.arrive=0.9;anim.dur=1.6;
+  }
   else if(res.out&&res.how==='bowled'){anim.type='bowled';anim.to=V3(0,0.4,10);anim.arc=0.2;anim.arrive=0.25;anim.dur=1.8;}
   else if(res.out&&res.how==='LBW'){anim.type='lbw';anim.to=V3(0,0.5,9.4);anim.arc=0.2;anim.arrive=0.35;anim.dur=1.6;}
+  else if(res.out&&res.how==='stumped'){anim.type='stumped';anim.to=V3(0,0.8,12.6);anim.arc=0.3;anim.arrive=0.6;anim.dur=1.6;}
   else if(res.out&&res.how==='caught'){
-    const f=fieldFigs.reduce((a,c)=>{const dx=c.home.x-dir.x*20,dz=c.home.z-dir.z*20;return (dx*dx+dz*dz)<(a.d*a.d)?{f:c,d:Math.hypot(dx,dz)}:a;},{f:fieldFigs[0],d:1e9}).f;
+    const near=nearestTo({x:dir.x*20,z:dir.z*20});
+    const f=near[0], bk=near[1];
     anim.type='caught';anim.catcher=f;anim.to=V3(f.home.x,1.3,f.home.z);anim.arc=2.2;anim.arrive=0.85;anim.dur=1.8;
+    anim.dive=Math.hypot(f.home.x-dir.x*20,f.home.z-dir.z*20)>15;
+    if(bk)anim.backup={fig:bk.fig,home:bk.home,to:V3(f.home.x*0.7,0,f.home.z*0.7)};
   }
-  else if(res.out&&res.how==='run out'){anim.type='runout';anim.to=V3(0,0.4,10);anim.arc=1.2;anim.arrive=0.9;anim.dur=2.0;}
-  else if(res.runs===4){const bp=boundaryPoint(dir);anim.type='four';anim.to=V3(bp.x,0.14,bp.z);anim.arc=0.8;anim.arrive=1;anim.dur=1.7;}
-  else if(res.runs===6){const bp=boundaryPoint(dir);anim.type='six';anim.to=V3(bp.x*1.1,0.5,bp.z*1.1);anim.arc=11;anim.arrive=1;anim.dur=1.9;}
+  else if(res.out&&res.how==='run out'){
+    const near=nearestTo({x:dir.x*14,z:dir.z*14});
+    const f=near[0];
+    anim.type='runout';anim.fielder=f;anim.throwFrom=V3(f.home.x,1.0,f.home.z);
+    anim.to=V3(0,0.4,10);anim.arc=1.0;anim.arrive=0.9;anim.dur=2.0;anim.runs=1;
+  }
+  else if(res.runs===4){const bp=boundaryPoint(dir);anim.type='four';anim.bp=bp;anim.to=V3(bp.x,0.14,bp.z);anim.arc=0.8;anim.arrive=1;anim.dur=1.7;
+    const near=nearestTo(bp);anim.backup={fig:near[0].fig,home:near[0].home,to:V3(bp.x*0.8,0,bp.z*0.8)};}
+  else if(res.runs===6){const bp=boundaryPoint(dir);anim.type='six';anim.bp=bp;anim.to=V3(bp.x*1.1,0.5,bp.z*1.1);anim.arc=11;anim.arrive=1;anim.dur=1.9;
+    const near=nearestTo(bp);anim.backup={fig:near[0].fig,home:near[0].home,to:V3(bp.x*0.8,0,bp.z*0.8)};}
   else if(res.runs>0){
-    const f=fieldFigs.reduce((a,c)=>{const dx=c.home.x-dir.x*20,dz=c.home.z-dir.z*20;return (dx*dx+dz*dz)<(a.d*a.d)?{f:c,d:Math.hypot(dx,dz)}:a;},{f:fieldFigs[0],d:1e9}).f;
+    const near=nearestTo({x:dir.x*20,z:dir.z*20});
+    const f=near[0], bk=near[1];
     anim.type='runs';anim.fielder=f;anim.to=V3(f.home.x,1.0,f.home.z);anim.arc=0.9;anim.arrive=0.8;anim.dur=1.7;anim.runs=res.runs;
+    if(bk){const tx=f.home.x, tz=f.home.z;const l=Math.hypot(tx,tz)||1;
+      anim.backup={fig:bk.fig,home:bk.home,to:V3(tx+tx/l*4,0,tz+tz/l*4)};}
+  }
+  // Ball speed follows timing: a perfectly timed shot beats the fielders.
+  if(ballData.userBatting&&(anim.type==='four'||anim.type==='six'||anim.type==='runs')){
+    anim.dur*=lastTiming==='perfect'?0.85:(lastTiming==='early'||lastTiming==='late'?1.15:1);
   }
   ballData.anim=anim;ballData.res=res;
   phase='result';phaseT0=gameTime;
@@ -439,7 +493,8 @@ function finishTravel(){
     bigText('WICKET! ☝️',2000);cheer();speak(`Wicket! ${res.how}! The crowd goes wild!`);
     say(`☝️ WICKET! ${ev.outBatter} ${ev.howTxt}. ${inn.batTeam.name} ${inn.score}/${inn.wkts}`);
     if(camMode==='broadcast')setCam('closeBat');
-  } else if(res.runs===4){bigText('FOUR! 💥',1800);crack();cheer();speak('What a shot! Four runs!');say(`💥 FOUR! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,1,10));}
+  } else if(res.byes){say(`↪️ ${res.byeType==='legbyes'?'Leg byes':'Byes'}: ${res.runs} run${res.runs>1?'s':''}. ${inn.score}/${inn.wkts}`);}
+  else if(res.runs===4){bigText('FOUR! 💥',1800);crack();cheer();speak('What a shot! Four runs!');say(`💥 FOUR! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,1,10));}
   else if(res.runs===6){bigText('SIX! 🚀',1800);crack();cheer();speak('Huge six! That has gone all the way!');say(`🚀 SIX! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,4,10));}
   else if(res.runs>0){crack();say(`🏃 ${res.runs} run${res.runs>1?'s':''}. ${inn.score}/${inn.wkts}`);}
   else if(!res.extra){say(`Dot ball. Good bowling. ${inn.score}/${inn.wkts}`);}
@@ -450,6 +505,8 @@ function boundaryPoint(dir){
   return {x:Math.sin(a)*62*1.05,z:Math.cos(a)*62};
 }
 function endBall(){
+  const badge=$('replay-badge');if(badge)badge.classList.add('hidden');
+  const sk=$('btn-skip-replay');if(sk)sk.classList.add('hidden');
   const ev=lastEv,inn=innNow();
   ballGrp.visible=false;
   if(ev&&ev.overComplete){say(`🏏 End of over ${fmtOvers(inn.balls)}: ${inn.score}/${inn.wkts}`);}
@@ -507,15 +564,16 @@ $('btn-close-stats').onclick=()=>{$('stats-overlay').classList.add('hidden');};
   base.addEventListener('pointerup',()=>{drag=false;});
 })();
 $('btn-bowl-ball').onclick=startBall;$('btn-bowl-delivery').onclick=startBall;$('btn-hit').onclick=onHit;
+$('btn-skip-replay').onclick=()=>{if(phase==='replay')endReplay();};
 $('btn-pause').onclick=()=>{paused=!paused;$('btn-pause').textContent=paused?'▶':'⏸';};
 $('btn-sound').onclick=()=>{soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in window))speechSynthesis.cancel();if(crowdGain)crowdGain.gain.value=soundOn?0.035:0;$('btn-sound').textContent=soundOn?'🔊':'🔇';};
 $('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,2):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 High':'🎞 Low';};
-$('btn-cam').onclick=()=>{const order=['broadcast','side','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
+$('btn-cam').onclick=()=>{const order=['broadcast','side','wide','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
 $('btn-scorecard').onclick=()=>{$('scorecard-wrap').classList.toggle('hidden');renderScorecard();};
 $('btn-rematch').onclick=()=>{document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';};
 $('btn-home').onclick=()=>{document.body.classList.remove('in-match');showScreen('screen-home');renderTeams();};
 document.addEventListener('keydown',e=>{
-  if(e.code==='Space'){e.preventDefault();if(phase==='travel')onHit();else if(phase==='idle')startBall();}
+  if(e.code==='Space'){e.preventDefault();if(phase==='replay')endReplay();else if(phase==='travel')onHit();else if(phase==='idle')startBall();}
   if(e.code==='Digit1')document.querySelector('[data-shot="defend"]')?.click();
   if(e.code==='Digit2')document.querySelector('[data-shot="drive"]')?.click();
   if(e.code==='Digit3')document.querySelector('[data-shot="cut"]')?.click();
@@ -559,30 +617,67 @@ function updatePhase(){
     ballGrp.visible=true;ballGrp.position.copy(deliveryPath(p,ballData));
     ballGrp.rotation.x+=0.15;
     $('timing-needle').style.left=(p*100)+'%';
+    // Bowler follow-through: keeps moving toward the batsman after release.
+    bowlFig.group.position.z=-9.5+3*p;
     setPose(bowlFig,{aRx:0.9,aRe:-0.2,hipsY:0.98});
-    // batsman trigger swing when ball is close
-    if(p>0.75&&ballData.userBatting&&hitDone)setPose(strikerFig,{...STANCE,batX:-2.6,batZ:0.4,lean:0.4});
-    else setPose(strikerFig,STANCE);
+    // Batting footwork: front-foot shots step toward the bowler, back-foot
+    // shots step back, synced to the ball arriving at the crease.
+    const fwShot=ballData.shot||'drive';
+    const front=(fwShot==='drive'||fwShot==='loft'||fwShot==='defend');
+    const fw=(front?-0.45:0.45)*Math.min(1,Math.max(0,(p-0.5)/0.3));
+    strikerFig.group.position.z=8.6+fw;
+    // Bat meets ball at contact: the swing animates through the HIT moment
+    // (user) or the contact window (AI), never at a fixed unrelated time.
+    let batX=-0.5;
+    if(ballData.userBatting&&hitDone){
+      const sw=(p-hitP)/0.35;
+      if(sw>=0&&sw<=1)batX=-0.5-2.1*Math.sin(Math.PI*sw);
+    } else if(!ballData.userBatting&&p>0.8&&p<1.0){
+      batX=-0.5-2.1*Math.sin(Math.PI*(p-0.8)/0.2);
+    }
+    setPose(strikerFig,{...STANCE,batX,batZ:0.4,lean:0.4});
     if(p>=1)finishTravel();
   } else if(phase==='result'&&ballData&&ballData.anim){
     const a=ballData.anim,p=Math.min(1,(gameTime-phaseT0)/a.dur),q=Math.min(1,p/(a.arrive||1));
     ballGrp.visible=true;
-    ballGrp.position.lerpVectors(a.from,a.to,q);
-    ballGrp.position.y=a.from.y+(a.to.y-a.from.y)*q+a.arc*Math.sin(Math.PI*q);
+    // Ball path per event: a four bounces then rolls, a six never bounces
+    // before the rope, a run-out is a two-part throw via the fielder.
+    if(a.type==='runout'&&a.fielder){
+      const f=a.fielder.fig;
+      if(q<0.5){ballGrp.position.lerpVectors(a.from,a.throwFrom,q/0.5);ballGrp.position.y+=a.arc*Math.sin(Math.PI*q/0.5);}
+      else{const u=(q-0.5)/0.5;ballGrp.position.lerpVectors(a.throwFrom,a.to,u);ballGrp.position.y+=a.arc*Math.sin(Math.PI*u);}
+      f.group.position.lerp(V3(a.fielder.home.x,0,a.fielder.home.z),V3(a.throwFrom.x,0,a.throwFrom.z),Math.min(1,q*2));
+      const s=Math.sin(gameTime*16);setPose(f,{lLx:s*0.7,lRx:-s*0.7,hipsY:0.98});
+    } else {
+      ballGrp.position.lerpVectors(a.from,a.to,q);
+      if(a.type==='four'){
+        if(q<0.45){const u=q/0.45;ballGrp.position.y=a.from.y+(0.14-a.from.y)*u+0.6*Math.sin(Math.PI*u);}
+        else ballGrp.position.y=0.14;
+      } else {
+        ballGrp.position.y=a.from.y+(a.to.y-a.from.y)*q+a.arc*Math.sin(Math.PI*q);
+      }
+    }
     if(a.type==='bowled'&&q>0.2)breakStumps(stumpsBat);
-    if(a.type==='runout'&&q>0.85)breakStumps(stumpsBat);
+    if(a.type==='runout'&&q>0.9)breakStumps(stumpsBat);
+    if(a.type==='stumped'&&q>0.5){breakStumps(stumpsBat);setPose(keepFig,{...KEEPER,aRx:-2.4,aLx:-2.4});}
+    // Wicket celebration: bowler raises arms and bounces.
+    if(ballData.res&&ballData.res.out){
+      setPose(bowlFig,{aLx:-2.6,aRx:-2.6,hipsY:0.98+Math.sin(gameTime*10)*0.08});
+    }
     if(a.type==='caught'&&a.catcher){
       const f=a.catcher.fig;
       f.group.position.lerp(V3(a.catcher.home.x,0,a.catcher.home.z),V3(a.to.x,0,a.to.z),q);
       f.group.position.y=q>0.7?Math.sin((q-0.7)/0.3*Math.PI)*0.8:0;
+      if(a.dive)f.group.rotation.x=-0.6*Math.min(1,Math.max(0,(q-0.4)/0.6));
       setPose(f,{aLx:-2.4,aLz:0.5,aRx:-2.4,aRz:-0.5,hipsY:0.98});
     }
     if(a.type==='runs'&&a.fielder){
       const f=a.fielder.fig;
       f.group.position.lerp(V3(a.fielder.home.x,0,a.fielder.home.z),V3(a.to.x,0,a.to.z),q);
-      const s=Math.sin(gameTime*16);setPose(f,{lLx:s*0.7,lRx:-s*0.7,hipsY:0.98});
+      const slide=q>0.7;f.group.rotation.x=slide?0.3:0;
+      const s=Math.sin(gameTime*16);setPose(f,{lLx:s*0.7,lRx:-s*0.7,hipsY:slide?0.75:0.98});
     }
-    if(a.type==='runs'||a.type==='runout'){
+    if(a.type==='runs'||a.type==='runout'||a.type==='byes'){
       const runs=a.runs||1,prog=p*runs,seg=Math.floor(prog),fr=prog-seg;
       const sz=seg%2===0?8.6-17.2*fr:-8.6+17.2*fr;
       const nz=seg%2===0?-8.6+17.2*fr:8.6-17.2*fr;
@@ -591,10 +686,69 @@ function updatePhase(){
       const s=Math.sin(gameTime*16);
       setPose(strikerFig,{...STANCE,lLx:s*0.7,lRx:-s*0.7});
       setPose(nonStrikerFig,{lLx:-s*0.7,lRx:s*0.7});
+      // Run-out dive: the batsman stretches for the crease at the end.
+      if(a.type==='runout'&&q>0.8){strikerFig.group.rotation.x=-0.9;strikerFig.group.position.y=0.25;}
+      else strikerFig.group.rotation.x=0;
       if(p>=1&&(runs%2===1)){const t=strikerFig;strikerFig=nonStrikerFig;nonStrikerFig=t;}
     }
-    if(a.type==='four'||a.type==='six'){trackBall(ballGrp.position);}
-    if(p>=1){endBall();}
+    // Keeper reactions: wides drift wide, byes get chased down.
+    if(a.type==='wide'){
+      keepFig.group.position.x=ballData.wideX*0.6*q;
+      setPose(keepFig,KEEPER);
+    } else if(a.type==='byes'){
+      keepFig.group.position.lerp(V3(0,0,12.6),V3(a.to.x*0.7,0,a.to.z*0.8),q);
+      const s=Math.sin(gameTime*16);setPose(keepFig,{...KEEPER,lLx:s*0.7,lRx:-s*0.7});
+    } else if(a.type==='dot'){
+      setPose(keepFig,{...KEEPER,hipsY:0.60+Math.sin(gameTime*8)*0.02});
+    }
+    // Backup fielder supports the primary chaser, never stands frozen.
+    if(a.backup){
+      const b=a.backup;
+      b.fig.group.position.lerp(V3(b.home.x,0,b.home.z),V3(b.to.x,0,b.to.z),Math.min(1,q*0.8));
+      const s=Math.sin(gameTime*16+2);setPose(b.fig,{lLx:s*0.7,lRx:-s*0.7,hipsY:0.98});
+    }
+    // Broadcast cameras: wide for chases, boundary cam at the rope,
+    // close-up for the catch moment.
+    if(a.type==='four'||a.type==='six'){
+      if(q<0.6)trackBall(ballGrp.position);
+      else if(a.bp)camTarget={pos:V3(a.bp.x*1.18,4,a.bp.z*1.18),look:V3(0,1,0)};
+    } else if(a.type==='caught'){
+      if(q<0.7)camTarget={...CAMS.wide};
+      else camTarget={pos:V3(a.to.x+4,2.5,a.to.z+4),look:V3(a.to.x,1.2,a.to.z)};
+    } else if(a.type==='runs'){camTarget={...CAMS.wide};}
+    if(p>=1){
+      if(!ballData.replayDone&&replayWorthy(ballData.res))startReplay();
+      else endBall();
+    }
+  } else if(phase==='replay'){
+    // Play back the recorded live trace verbatim: same ball path, same
+    // actors, same outcome. No score or state changes happen here.
+    if(!replayTrace.length){endBall();return;}
+    const tStart=replayTrace[0].t, tEnd=replayTrace[replayTrace.length-1].t, dur=Math.max(0.5,tEnd-tStart);
+    const rt=(gameTime-replayT0)*(replaySlow?0.55:1.0);
+    let i=0;while(i<replayTrace.length-1&&replayTrace[i+1].t<tStart+rt)i++;
+    const A=replayTrace[i],B=replayTrace[Math.min(i+1,replayTrace.length-1)];
+    const span=(B.t-A.t)||0.001, f=Math.min(1,Math.max(0,(tStart+rt-A.t)/span));
+    const lp=(P,Q)=>P?new THREE.Vector3().lerpVectors(P,Q,f):null;
+    ballGrp.visible=A.vis;
+    const bp=lp(A.ball,B.ball);if(bp)ballGrp.position.copy(bp);
+    const bw=lp(A.bowl,B.bowl);if(bw)bowlFig.group.position.copy(bw);
+    const ba=lp(A.bat,B.bat);if(ba)strikerFig.group.position.copy(ba);
+    const ns=lp(A.ns,B.ns);if(ns)nonStrikerFig.group.position.copy(ns);
+    const kp=lp(A.keep,B.keep);if(kp)keepFig.group.position.copy(kp);
+    if(A.cf){const cp=lp(A.cf.pos,B.cf?B.cf.pos:A.cf.pos);if(cp)A.cf.fig.group.position.copy(cp);}
+    if(A.ph==='travel')setPose(strikerFig,{...STANCE,batX:-2.0,batZ:0.4,lean:0.4});
+    else if(A.ph==='runup')setPose(bowlFig,{lLx:0.7,lRx:-0.7,hipsY:0.98});
+    else setPose(strikerFig,STANCE);
+    // Two camera angles: broadcast first, then a close/boundary angle.
+    if(rt<dur*0.5){camTarget=CAMS.broadcast;}
+    else{
+      const ev=replayEvent;
+      if(ev&&(ev.type==='four'||ev.type==='six'))trackBall(ballGrp.position);
+      else if(ev&&ev.type==='caught'&&A.cf)camTarget={pos:V3(A.cf.pos.x+4,2.5,A.cf.pos.z+4),look:V3(A.cf.pos.x,1.2,A.cf.pos.z)};
+      else camTarget=CAMS.closeBat;
+    }
+    if(rt>=dur)endReplay();
   }
   // bails flying
   [stumpsBat,stumpsBowl].forEach(g=>{
@@ -614,6 +768,26 @@ function loop(){
   const ww=wrap.clientWidth,hh=wrap.clientHeight||500;
   if(ww>0&&Math.abs(camera.aspect-ww/hh)>0.001)resize();
   updatePhase();
+  // Record the live ball frame-by-frame so replays show the real event,
+  // not a regenerated one: ball path + bowler, batters, keeper, chaser.
+  if(ballData&&(phase==='runup'||phase==='deliver'||phase==='travel'||phase==='result')){
+    const a=ballData.anim;
+    const cf=a&&(a.catcher?a.catcher:(a.fielder?a.fielder:null));
+    replayTrace.push({t:gameTime,ph:phase,vis:ballGrp.visible,
+      ball:ballGrp.visible?ballGrp.position.clone():null,
+      bowl:bowlFig.group.position.clone(),bat:strikerFig.group.position.clone(),
+      ns:nonStrikerFig.group.position.clone(),keep:keepFig.group.position.clone(),
+      cf:cf?{fig:cf.fig,pos:cf.fig.group.position.clone()}:null});
+    if(replayTrace.length>420)replayTrace.shift();
+  }
+  // Fielders never stand frozen: small ready movements before the ball.
+  if(phase==='idle'||phase==='runup'||phase==='deliver'){
+    fieldFigs.forEach(({fig,home},i)=>{
+      fig.group.position.x=home.x+Math.sin(gameTime*1.3+i)*0.25;
+      fig.group.position.z=home.z+Math.cos(gameTime*1.1+i*2)*0.25;
+    });
+    setPose(keepFig,{...KEEPER,hipsY:0.60+Math.sin(gameTime*3)*0.02});
+  }
   if(markerMesh){
     const show=!!(M&&!userBattingNow()&&(phase==='idle'||phase==='runup'||phase==='deliver'));
     markerMesh.visible=show;

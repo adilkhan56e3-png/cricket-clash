@@ -94,7 +94,7 @@ export function startInnings(M,batTeam,bowlTeam,target){
     batsmen:batTeam.players.slice(0,11).map(p=>({p,runs:0,balls:0,fours:0,sixes:0,out:false,howOut:''})),
     striker:0,nonStriker:1,nextIdx:2,
     bowlers:bowlTeam.players.filter(p=>p.r==='BOWL'||p.r==='AR').map(p=>({p,balls:0,runs:0,wkts:0,maidens:0})),
-    lastBowler:null,overBowler:null,extras:{runs:0,wides:0,noballs:0},fow:[],overStartRuns:0};
+    lastBowler:null,overBowler:null,extras:{runs:0,wides:0,noballs:0,byes:0,legbyes:0},fow:[],overStartRuns:0};
   M.innings.push(inn);M.inn=M.innings.length;return inn;
 }
 export function curBowler(inn){
@@ -108,7 +108,8 @@ export function strikerRec(inn){return inn.batsmen[inn.striker];}
 export function nonStrikerRec(inn){return inn.batsmen[inn.nonStriker];}
 
 // Timing-based batting outcome. timing: 'perfect'|'good'|'early'|'late'|'miss'|null(AI)
-export function battingOutcome(bat,bowl,timing,shot){
+// delivery (optional): the ball type, used for stumped chances on spin.
+export function battingOutcome(bat,bowl,timing,shot,delivery){
   const w={0:22,1:26,2:8,3:2,4:16,6:8,W:10};
   const edge=(bat-bowl)/100;
   w[4]=Math.max(2,w[4]+edge*14);w[6]=Math.max(1,w[6]+edge*10);w.W=Math.max(3,w.W-edge*8);
@@ -118,7 +119,14 @@ export function battingOutcome(bat,bowl,timing,shot){
   if(timing==='perfect'){w[4]+=9;w[6]+=7;w.W=Math.max(1,w.W-7);}
   else if(timing==='good'){w[4]+=3;w[6]+=2;}
   else if(timing==='early'||timing==='late'){w.W+=9;w[4]=Math.max(0,w[4]-5);w[6]=Math.max(0,w[6]-3);}
-  else if(timing==='miss'){return {runs:0,out:Math.random()<0.2,how:'bowled'};}
+  else if(timing==='miss'){
+    // Ball beats the bat: stumped (spin), byes/leg-byes (ball passes keeper),
+    // or bowled. Byes are extras: not charged to bowler or batsman.
+    if(delivery==='spin'&&Math.random()<0.10)return {runs:0,out:true,how:'stumped'};
+    if(Math.random()<0.12){const runs=+weightedPick({1:5,2:2,3:1,4:2});
+      return {runs,out:false,how:'',byes:true,byeType:Math.random()<0.5?'byes':'legbyes'};}
+    return {runs:0,out:Math.random()<0.2,how:'bowled'};
+  }
   const k=weightedPick(w);
   if(k==='W')return {runs:0,out:true,how:pick(['bowled','caught','LBW','run out'])};
   return {runs:+k,out:false,how:''};
@@ -130,8 +138,15 @@ export function aiBattingOutcome(bat,bowl,delivery){
   if(delivery==='yorker'){res=Math.random()<0.10?{runs:0,out:true,how:'bowled'}:battingOutcome(bat,bowl,null,'normal');}
   else if(delivery==='bouncer'){res=Math.random()<0.12?{runs:0,out:true,how:'caught'}:battingOutcome(bat,bowl,null,Math.random()<0.5?'pull':'normal');}
   else if(delivery==='slower'){res=Math.random()<0.10?{runs:0,out:true,how:'caught'}:battingOutcome(bat,bowl,null,'attack');}
-  else if(delivery==='spin'){res=bat<80&&Math.random()<0.12?{runs:0,out:true,how:'caught'}:battingOutcome(bat,bowl,null,'normal');}
+  else if(delivery==='spin'){
+    if(bat<80&&Math.random()<0.08)res={runs:0,out:true,how:'stumped'};
+    else if(bat<80&&Math.random()<0.12)res={runs:0,out:true,how:'caught'};
+    else res=battingOutcome(bat,bowl,null,'normal');
+  }
   else res=battingOutcome(bat,bowl,null,agg==='attack'?'attack':'normal');
+  // Occasional bye: ball beats bat and keeper on a dot ball.
+  if(!res.out&&res.runs===0&&Math.random()<0.05)
+    return {runs:1,out:false,how:'',byes:true,byeType:'byes'};
   return res;
 }
 export function speedFor(delivery){
@@ -154,6 +169,7 @@ export function applyBall(M,res,extraRuns,extraLabel){
     inn.wkts++;b.wkts++;s.out=true;
     if(res.how==='bowled')ev.howTxt=`b ${b.p.n}`;
     else if(res.how==='LBW')ev.howTxt=`lbw b ${b.p.n}`;
+    else if(res.how==='stumped'){const kp=inn.bowlTeam.players.find(pp=>pp.r==='WK');ev.howTxt=`st ${kp?kp.n:'Keeper'} b ${b.p.n}`;}
     else if(res.how==='run out')ev.howTxt=`run out (${b.p.n})`;
     else if(res.how==='caught'){const opts=inn.bowlTeam.players.filter(pp=>pp!==b.p);const cf=pick(opts);ev.howTxt=`c ${cf.n} b ${b.p.n}`;ev.catcher=cf.n;}
     else ev.howTxt=res.how;
@@ -161,6 +177,13 @@ export function applyBall(M,res,extraRuns,extraLabel){
     inn.fow.push({score:inn.score,wkts:inn.wkts,batter:s.p.n,overs:fmtOvers(inn.balls)});
     if(inn.wkts>=10||inn.nextIdx>=11){ev.inningsOver=true;}
     else{inn.striker=inn.nextIdx++;ev.newBatsman=inn.batsmen[inn.striker];}
+  } else if(res.byes){
+    // Byes / leg-byes: runs count for the team and extras, never for
+    // the batsman or the bowler. Strike still rotates on odd runs.
+    inn.score+=res.runs;inn.extras.runs+=res.runs;
+    if(res.byeType==='legbyes')inn.extras.legbyes+=res.runs;else inn.extras.byes+=res.runs;
+    ev.byes=true;ev.byeType=res.byeType||'byes';
+    if(res.runs%2===1){const t=inn.striker;inn.striker=inn.nonStriker;inn.nonStriker=t;}
   } else {
     inn.score+=res.runs;b.runs+=res.runs;s.runs+=res.runs;
     if(res.runs===4)s.fours++;
