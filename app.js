@@ -420,7 +420,7 @@ function renderScorecard(){
     h+=`<table><tr><th>Batter</th><th>Dismissal</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr>`;
     inn.batsmen.forEach((b,i)=>{if(b.balls>0||b.out||i===atCrease1||i===atCrease2)
       h+=`<tr><td>${b.p.n}${(!b.out&&(i===atCrease1||i===atCrease2))?'*':''}</td><td style="opacity:.75">${b.out?b.howOut:'not out'}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${sr(b)}</td></tr>`;});
-    if(inn.batsmen.some(b=>b.balls===0&&!b.out))h+=`<tr><td colspan="7" style="opacity:.75">Did not bat: ${inn.batsmen.filter(b=>b.balls===0&&!b.out).map(b=>b.p.n).join(', ')}</td></tr>`;
+    if(inn.batsmen.some((b,i)=>b.balls===0&&!b.out&&i!==atCrease1&&i!==atCrease2))h+=`<tr><td colspan="7" style="opacity:.75">Did not bat: ${inn.batsmen.filter((b,i)=>b.balls===0&&!b.out&&i!==atCrease1&&i!==atCrease2).map(b=>b.p.n).join(', ')}</td></tr>`;
     h+=`<tr><td colspan="7">Extras ${inn.extras.runs} (w ${inn.extras.wides}, nb ${inn.extras.noballs}, b ${inn.extras.byes||0}, lb ${inn.extras.legbyes||0}) • Fall of wickets: ${inn.fow.map(f=>`${f.score}/${f.wkts} ${f.batter} (${f.overs})`).join(', ')||'—'}</td></tr></table>`;
     h+=`<table><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr>`;
     inn.bowlers.forEach(b=>{if(b.balls>0)h+=`<tr><td>${b.p.n}</td><td>${fmtOvers(b.balls)}</td><td>${b.maidens}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${econ(b)}</td></tr>`;});
