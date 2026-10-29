@@ -3,7 +3,7 @@
 // broadcast cameras, full match engine from engine.js.
 import * as THREE from 'three';
 import {TEAMS, createMatch, startInnings, curBowler, strikerRec, nonStrikerRec,
-  battingOutcome, aiBattingOutcome, applyBall, speedFor, fmtOvers, manOfMatch} from './engine.js';
+  battingOutcome, aiBattingOutcome, applyBall, speedFor, fmtOvers, manOfMatch, pick} from './engine.js';
 window.__cc3d_loaded = true;
 const $=id=>document.getElementById(id);
 const showScreen=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');};
@@ -134,21 +134,21 @@ function makeHumanoid({kit,pants,skin,helmet,padder=false,trim=0xffffff,hairC=0x
   const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.055,0.1,10),skinM);neck.position.y=0.72;hips.add(neck);
   const head=new THREE.Group();head.position.y=0.80;hips.add(head);
   const skull=new THREE.Mesh(new THREE.SphereGeometry(0.125,20,16),skinM);skull.castShadow=true;head.add(skull);
-  // Open helmet shell: covers the top only, so the face stays visible
-  // (the old full shell hid every face behind helmet colour).
-  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.148,20,16,0,Math.PI*2,0,Math.PI*0.55),helmM);helm.position.y=0.02;helm.castShadow=true;head.add(helm);
+  // Open helmet shell: shallow cap above the brows, so the face stays visible
+  // (the old deep shell reached eye level and hid the whole face).
+  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.148,20,16,0,Math.PI*2,0,Math.PI*0.38),helmM);helm.position.y=0.02;helm.castShadow=true;head.add(helm);
   // Helmet peak sits above the eyes, not across them.
   const visor=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.06),matC(0x1f2937));visor.position.set(0,0.075,0.13);head.add(visor);
   // Face: eyes, pupils, brows, nose, mouth, ears, hair at back/sides.
   const whiteM=matC(0xffffff),darkM=matC(0x1f2937),mouthM=matC(0x7f1d1d);
   [-1,1].forEach(s=>{
-    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.022,10,8),whiteM);eye.position.set(0.05*s,0.02,0.115);head.add(eye);
-    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.011,8,8),darkM);pup.position.set(0.05*s,0.02,0.132);head.add(pup);
-    const brow=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.012,0.01),darkM);brow.position.set(0.05*s,0.058,0.12);head.add(brow);
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.027,10,8),whiteM);eye.position.set(0.05*s,0.02,0.115);head.add(eye);
+    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.014,8,8),darkM);pup.position.set(0.05*s,0.02,0.134);head.add(pup);
+    const brow=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.012,0.01),darkM);brow.position.set(0.05*s,0.058,0.12);head.add(brow);
     const ear=new THREE.Mesh(new THREE.SphereGeometry(0.028,8,8),skinM);ear.position.set(0.125*s,0,0);head.add(ear);
   });
-  const nose=new THREE.Mesh(new THREE.BoxGeometry(0.028,0.05,0.03),skinM);nose.position.set(0,-0.02,0.128);head.add(nose);
-  const mouth=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.014,0.01),mouthM);mouth.position.set(0,-0.065,0.118);head.add(mouth);
+  const nose=new THREE.Mesh(new THREE.BoxGeometry(0.034,0.06,0.035),skinM);nose.position.set(0,-0.02,0.128);head.add(nose);
+  const mouth=new THREE.Mesh(new THREE.BoxGeometry(0.075,0.018,0.01),mouthM);mouth.position.set(0,-0.065,0.118);head.add(mouth);
   const hair=new THREE.Mesh(new THREE.SphereGeometry(0.13,16,12),matC(hairC));hair.scale.set(1,1,0.75);hair.position.set(0,0.015,-0.035);head.add(hair);
   function arm(side){
     const sh=new THREE.Group();sh.position.set(0.25*side,0.60,0);hips.add(sh);
@@ -180,7 +180,7 @@ function makeHumanoid({kit,pants,skin,helmet,padder=false,trim=0xffffff,hairC=0x
   return {group:g,hips,head,aL,aR,lL,lR,bat};
 }
 function setPose(p,o){
-  p.hips.position.y=o.hipsY??0.98;p.hips.rotation.x=o.lean??0;
+  p.hips.position.y=o.hipsY??0.98;p.hips.rotation.x=o.lean??0;p.hips.rotation.y=o.hipsRotY??0;
   p.aL.sh.rotation.set(o.aLx??0.15,0,o.aLz??0.25);p.aL.el.rotation.x=o.aLe??-0.4;
   p.aR.sh.rotation.set(o.aRx??0.15,0,o.aRz??-0.25);p.aR.el.rotation.x=o.aRe??-0.4;
   p.lL.hp.rotation.x=o.lLx??0;p.lL.kn.rotation.x=o.lLk??0;
@@ -253,7 +253,7 @@ const CAMS={
   closeBat:{pos:new THREE.Vector3(3.8,1.9,13.2),look:new THREE.Vector3(0,1.1,9.5)},
   closeBowl:{pos:new THREE.Vector3(-3.8,1.9,-13.2),look:new THREE.Vector3(0,1.1,-9.5)},
 };
-let camMode='broadcast', camTarget={...CAMS.broadcast}, camAuto=true;
+let camMode='broadcast', camTarget={...CAMS.broadcast}, camAuto=true, userCam='broadcast';
 function setCam(name){camMode=name;camTarget=CAMS[name]||CAMS.broadcast;const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: '+name;}}
 function trackBall(bpos){
   camTarget={pos:new THREE.Vector3(bpos.x*0.55,7.5,bpos.z-13),look:new THREE.Vector3(bpos.x,bpos.y,bpos.z)};
@@ -271,6 +271,10 @@ let replayTrace=[],replayT0=0,replaySlow=false,replayEvent=null;
 function replayWorthy(res){return !!res&&(res.runs===4||res.runs===6||!!res.out);}
 function startReplay(){
   if(!replayTrace.length){endBall();return;}
+  // Replays start at the delivery stride, not the run-up, so they feel
+  // shorter and get to the action at once.
+  const di=replayTrace.findIndex(s=>s.ph==='deliver');
+  if(di>0)replayTrace=replayTrace.slice(di);
   const res=ballData.res;
   replayEvent={type:ballData.anim?ballData.anim.type:'',res};
   replaySlow=(res.runs===6||!!res.out);
@@ -285,8 +289,9 @@ function startReplay(){
 function endReplay(){
   const badge=$('replay-badge');if(badge)badge.classList.add('hidden');
   const sk=$('btn-skip-replay');if(sk)sk.classList.add('hidden');
-  // Return to the live broadcast view at once, not on the next delivery.
-  setCam('broadcast');
+  // Return to the live view at once, not on the next delivery — keeping
+  // the camera the user picked, instead of forcing broadcast every ball.
+  setCam(userCam);
   endBall();
   // Clear the stale REPLAY line from the ticker; show the live score.
   const inn=innNow();
@@ -372,8 +377,11 @@ function renderTeams(){
 }
 userTeam=TEAMS.find(t=>t.id==='PAK');oppTeam=TEAMS.find(t=>t.id==='IND');renderTeams();
 document.querySelectorAll('.over').forEach(b=>b.onclick=()=>{document.querySelectorAll('.over').forEach(x=>x.classList.remove('active'));b.classList.add('active');overs=+b.dataset.over;});
-$('btn-play').onclick=()=>{unlockAudio();M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');};
+$('btn-play').onclick=()=>{unlockAudio();M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('btn-heads').disabled=false;$('btn-tails').disabled=false;};
 function tossDone(userWon){
+  // A toss happens once: lock the call buttons so repeated clicks cannot
+  // re-roll it and leave contradictory messages on screen.
+  $('btn-heads').disabled=true;$('btn-tails').disabled=true;
   $('toss-result').textContent=userWon?`${userTeam.name} won the toss!`:`${oppTeam.name} won the toss and chose to ${Math.random()<0.5?'bat':'bowl'} first.`;
   if(userWon){$('toss-choice').classList.remove('hidden');}
   else{userBatsFirst=!(Math.random()<0.5);$('btn-start-match').classList.remove('hidden');}
@@ -460,7 +468,7 @@ function startBall(){
   hitDone=false;hitP=null;lastTiming=null;$('timing-hint').textContent='';
   $('btn-bowl-ball').disabled=true;$('btn-bowl-delivery').disabled=true;
   if(ballData.userBatting){$('timing-box').classList.remove('hidden');$('btn-hit').classList.remove('hidden');}
-  setCam('broadcast');
+  setCam(userCam);
   phase='runup';phaseT0=gameTime;
 }
 function deliveryPath(p,bd){
@@ -541,6 +549,9 @@ function finishTravel(){
     const near=nearestTo({x:dir.x*20,z:dir.z*20});
     const f=near[0], bk=near[1];
     anim.type='runs';anim.fielder=f;anim.to=V3(f.home.x,1.0,f.home.z);anim.arc=0.9;anim.arrive=0.8;anim.dur=1.7;anim.runs=res.runs;
+    // Name the chasing fielder in commentary (squad minus bowler + keeper).
+    const opts=inn.bowlTeam.players.filter(pp=>pp!==b.p&&pp.r!=='WK');
+    anim.chaserName=opts.length?pick(opts).n:'Fielder';
     if(bk){const tx=f.home.x, tz=f.home.z;const l=Math.hypot(tx,tz)||1;
       anim.backup={fig:bk.fig,home:bk.home,to:V3(tx+tx/l*4,0,tz+tz/l*4)};}
   }
@@ -559,7 +570,7 @@ function finishTravel(){
   } else if(res.byes){say(`↪️ ${res.byeType==='legbyes'?'Leg byes':'Byes'}: ${res.runs} run${res.runs>1?'s':''}. ${inn.score}/${inn.wkts}`);}
   else if(res.runs===4){bigText('FOUR! 💥',1800);crack();cheer();speak('What a shot! Four runs!');say(`💥 FOUR! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,1,10));}
   else if(res.runs===6){bigText('SIX! 🚀',1800);crack();cheer();speak('Huge six! That has gone all the way!');say(`🚀 SIX! ${inn.score}/${inn.wkts}`);if(camMode==='broadcast')trackBall(V3(0,4,10));}
-  else if(res.runs>0){crack();say(`🏃 ${res.runs} run${res.runs>1?'s':''}. ${inn.score}/${inn.wkts}`);}
+  else if(res.runs>0){crack();say(`🏃 ${res.runs} run${res.runs>1?'s':''} — ${ballData.anim.chaserName||'Fielder'} fields it. ${inn.score}/${inn.wkts}`);}
   else if(!res.extra){say(`Dot ball. Good bowling. ${inn.score}/${inn.wkts}`);}
   renderAll();renderScorecard();
 }
@@ -583,7 +594,7 @@ function endBall(){
         startInnings(M,batFirst,bowlFirst,target);
         setupPlayers(batFirst,bowlFirst);
         strikerFig=batFigA;nonStrikerFig=batFigB;
-        resetBall();renderAll();updateControls();setCam('broadcast');
+        resetBall();renderAll();updateControls();setCam(userCam);
         say(`🏏 Second innings: ${batFirst.name} need ${target} to win.`);
         if(userBattingNow()&&autoBowl)scheduleAutoBall(2500);
       },2600);
@@ -638,9 +649,9 @@ $('btn-skip-replay').onclick=()=>{if(phase==='replay')endReplay();};
 $('btn-pause').onclick=()=>{paused=!paused;$('btn-pause').textContent=paused?'▶':'⏸';};
 $('btn-sound').onclick=()=>{soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in window))speechSynthesis.cancel();if(crowdGain)crowdGain.gain.value=soundOn?0.035:0;$('btn-sound').textContent=soundOn?'🔊':'🔇';};
 $('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,3):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 High':'🎞 Low';};
-$('btn-cam').onclick=()=>{const order=['broadcast','side','wide','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
+$('btn-cam').onclick=()=>{const order=['broadcast','side','wide','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;userCam=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
 $('btn-scorecard').onclick=()=>{$('scorecard-wrap').classList.toggle('hidden');renderScorecard();};
-$('btn-rematch').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';};
+$('btn-rematch').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';$('btn-heads').disabled=false;$('btn-tails').disabled=false;};
 $('btn-home').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');showScreen('screen-home');renderTeams();};
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'){e.preventDefault();if(phase==='replay')endReplay();else if(phase==='travel')onHit();else if(phase==='idle')startBall();}
@@ -697,16 +708,23 @@ function updatePhase(){
     const front=(fwShot==='drive'||fwShot==='loft'||fwShot==='defend');
     const fw=(front?-0.45:0.45)*Math.min(1,Math.max(0,(p-0.5)/0.3));
     strikerFig.group.position.z=8.6+fw;
-    // Bat meets ball at contact: the swing animates through the HIT moment
-    // (user) or the contact window (AI), never at a fixed unrelated time.
-    let batX=-0.5;
+    // Bat meets ball at contact with a FULL-BODY swing: torso twists,
+    // arms swing through, bat arcs — visible from broadcast distance.
+    // (The old bat-only rotation was invisible from the camera, which is
+    // why shots looked like they happened by themselves.)
+    let swingPose=null;
+    const swingFrom=s=>{
+      const v=Math.sin(Math.PI*s);
+      return {...STANCE,batX:-0.5-2.1*v,batZ:0.4,lean:0.4,hipsRotY:0.55*v,
+        aRx:-0.5-1.7*v,aRe:-0.9+0.7*v,aLx:-0.3-0.8*v};
+    };
     if(ballData.userBatting&&hitDone){
-      const sw=(p-hitP)/0.35;
-      if(sw>=0&&sw<=1)batX=-0.5-2.1*Math.sin(Math.PI*sw);
-    } else if(!ballData.userBatting&&p>0.8&&p<1.0){
-      batX=-0.5-2.1*Math.sin(Math.PI*(p-0.8)/0.2);
+      const sw=(p-hitP)/0.45;
+      if(sw>=0&&sw<=1)swingPose=swingFrom(sw);
+    } else if(!ballData.userBatting&&p>0.75&&p<1.0){
+      swingPose=swingFrom((p-0.75)/0.25);
     }
-    setPose(strikerFig,{...STANCE,batX,batZ:0.4,lean:0.4});
+    setPose(strikerFig,swingPose||STANCE);
     if(p>=1)finishTravel();
   } else if(phase==='result'&&ballData&&ballData.anim){
     const a=ballData.anim,p=Math.min(1,(gameTime-phaseT0)/a.dur),q=Math.min(1,p/(a.arrive||1));
@@ -796,7 +814,7 @@ function updatePhase(){
     // actors, same outcome. No score or state changes happen here.
     if(!replayTrace.length){endBall();return;}
     const tStart=replayTrace[0].t, tEnd=replayTrace[replayTrace.length-1].t, dur=Math.max(0.5,tEnd-tStart);
-    const rt=(gameTime-replayT0)*(replaySlow?0.55:1.0);
+    const rt=(gameTime-replayT0)*(replaySlow?0.7:1.0);
     let i=0;while(i<replayTrace.length-1&&replayTrace[i+1].t<tStart+rt)i++;
     const A=replayTrace[i],B=replayTrace[Math.min(i+1,replayTrace.length-1)];
     const span=(B.t-A.t)||0.001, f=Math.min(1,Math.max(0,(tStart+rt-A.t)/span));

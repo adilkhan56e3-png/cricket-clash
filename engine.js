@@ -128,6 +128,8 @@ export function battingOutcome(bat,bowl,timing,shot,delivery){
     return {runs:0,out:Math.random()<0.2,how:'bowled'};
   }
   const k=weightedPick(w);
+  // A perfectly timed shot always makes contact: never a dot on PERFECT.
+  if(timing==='perfect'&&k==='0')return {runs:1,out:false,how:''};
   if(k==='W')return {runs:0,out:true,how:pick(['bowled','caught','LBW','run out'])};
   return {runs:+k,out:false,how:''};
 }
