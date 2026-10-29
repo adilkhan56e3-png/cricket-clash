@@ -189,7 +189,7 @@ function setPose(p,o){
 }
 const IDLE={};
 const STANCE={hipsY:0.88,lean:0.28,aRx:-0.5,aRz:-0.2,aRe:-0.9,aLx:-0.3,aLz:0.3,aLe:-0.7,lLx:0.35,lLk:-0.55,lRx:0.15,lRk:-0.25,batX:-0.5};
-const KEEPER={hipsY:0.60,lean:0.45,aRx:-0.9,aRz:-0.4,aRe:-0.5,aLx:-0.9,aLz:0.4,aLe:-0.5,lLx:0.9,lLk:-1.3,lRx:0.9,lRk:-1.3,batX:-0.3};
+const KEEPER={hipsY:0.72,lean:0.30,aRx:-0.9,aRz:-0.4,aRe:-0.5,aLx:-0.9,aLz:0.4,aLe:-0.5,lLx:0.7,lLk:-1.0,lRx:0.7,lRk:-1.0,batX:-0.3};
 const skinTones=[0xffdbac,0xf1c27d,0xe0ac69,0xc68642,0x8d5524];
 const skinFor=n=>{let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))>>>0;return skinTones[h%skinTones.length];};
 const hairTones=[0x111827,0x3f2d20,0x1f2937,0x4b3621];
@@ -262,6 +262,53 @@ function trackBall(bpos){
 // ---------- Game state ----------
 let userTeam=null,oppTeam=null,overs=5,M=null,userBatsFirst=true;
 let shot='drive',delivery='fast',ballBusy=false,paused=false,qualityHigh=true;
+let userOpeners=[],userBowlers=[];
+const roleLabel=r=>r==='BAT'?'Batsman':r==='WK'?'Wicketkeeper':r==='BOWL'?'Bowler':'All-rounder';
+function resetSelections(){
+  userOpeners=userTeam.players.slice(0,2);
+  const top=[...userTeam.players].sort((a,b)=>b.bowl-a.bowl).slice(0,5);
+  userBowlers=userTeam.players.filter(p=>top.includes(p));
+}
+function renderSelect(){
+  $('sel-team-note').textContent=`${userTeam.name} — pehle list se apne players chunein, phir toss hoga.`;
+  const mk=(p,badge,onclick)=>{
+    const b=document.createElement('button');b.className='sel-item'+(badge?' sel':'');
+    b.innerHTML=`<span>${p.n} <span class="role">${roleLabel(p.r)} • Bat ${p.bat} • Bowl ${p.bowl}</span></span><span class="badge">${badge||''}</span>`;
+    b.onclick=()=>{onclick();renderSelect();};return b;
+  };
+  const ol=$('sel-openers');ol.innerHTML='';
+  userTeam.players.forEach(p=>{
+    const i=userOpeners.indexOf(p);
+    ol.appendChild(mk(p,i>=0?String(i+1):'',()=>{
+      if(i>=0)userOpeners.splice(i,1);
+      else if(userOpeners.length<2)userOpeners.push(p);
+      else{userOpeners.shift();userOpeners.push(p);}
+    }));
+  });
+  const bl=$('sel-bowlers');bl.innerHTML='';
+  userTeam.players.forEach(p=>{
+    const sel=userBowlers.includes(p);
+    bl.appendChild(mk(p,sel?'✓':'',()=>{
+      if(sel)userBowlers.splice(userBowlers.indexOf(p),1);
+      else if(userBowlers.length<5)userBowlers.push(p);
+      else{userBowlers.shift();userBowlers.push(p);}
+    }));
+  });
+}
+// Apply the user's picks at the start of an innings (fresh innings only:
+// batsmen stats are all zero and nextIdx is 2, so reordering is safe).
+function applySelections(){
+  const inn=innNow();if(!inn)return;
+  if(inn.batTeam===userTeam&&userOpeners.length===2){
+    const rest=userTeam.players.filter(p=>!userOpeners.includes(p));
+    const order=[...userOpeners,...rest];
+    inn.batsmen=order.map(p=>inn.batsmen.find(b=>b.p===p)).filter(Boolean);
+    inn.striker=0;inn.nonStriker=1;inn.nextIdx=2;
+  }
+  if(inn.bowlTeam===userTeam&&userBowlers.length){
+    inn.bowlers=userBowlers.map(p=>({p,balls:0,runs:0,wkts:0,maidens:0}));
+  }
+}
 let joyX=0,joyY=0,bowlType='fast',bowlLength='good',bowlPower=70,curPower=70;
 let phase='idle',phaseT0=0,gameTime=0,hitDone=false,hitP=null,lastTiming=null;
 let ballData=null,lastEv=null,lastShotDir=null,lastBounce=null,shotsLog=[];
@@ -304,13 +351,13 @@ const SHOT_DIRS={drive:{x:0.25,z:1},cut:{x:1,z:0.15},pull:{x:-1,z:0.1},sweep:{x:
 // batX/aRx accept [from,to] interpolated by the swing progress s.
 const SHOT_SWING={
   defend:{label:'Forward Defence',batX:[-0.5,-1.1],batZ:0.15,lean:0.5,hipsY:0.98,rot:0.1,aRx:[-0.5,-0.9],aRe:[-0.9,-0.7],aLx:[-0.3,-0.5],foot:-0.45},
-  drive:{label:'Cover Drive',batX:[-0.5,-2.4],batZ:0.3,lean:0.5,hipsY:0.98,rot:0.3,aRx:[-0.5,-2.0],aRe:[-0.9,-0.3],aLx:[-0.3,-0.8],foot:-0.45},
-  cut:{label:'Square Cut',batX:-0.3,batZ:1.35,lean:0.2,hipsY:0.98,rot:0.45,aRx:[-0.5,-1.2],aRe:[-0.9,-0.4],aLx:[-0.3,-0.7],foot:0.45},
-  pull:{label:'Pull Shot',batX:-0.5,batZ:1.1,lean:0.3,hipsY:0.98,rot:0.95,aRx:[-0.5,-1.6],aRe:[-0.9,-0.4],aLx:[-0.3,-0.9],foot:0.45},
-  sweep:{label:'Sweep Shot',batX:-0.9,batZ:1.25,lean:0.6,hipsY:0.62,rot:0.5,aRx:[-0.5,-1.3],aRe:[-0.9,-0.5],aLx:[-0.3,-0.7],foot:-0.15},
+  drive:{label:'Cover Drive',batX:[-0.5,-2.4],batZ:0.3,lean:0.4,hipsY:0.98,rot:0.3,aRx:[-0.5,-2.0],aRe:[-0.9,-0.3],aLx:[-0.3,-0.8],foot:-0.45},
+  cut:{label:'Square Cut',batX:-0.3,batZ:1.15,lean:0.2,hipsY:0.98,rot:0.35,aRx:[-0.5,-1.2],aRe:[-0.9,-0.4],aLx:[-0.3,-0.7],foot:0.45},
+  pull:{label:'Pull Shot',batX:-0.5,batZ:1.1,lean:0.25,hipsY:0.98,rot:0.6,aRx:[-0.5,-1.6],aRe:[-0.9,-0.4],aLx:[-0.3,-0.9],foot:0.45},
+  sweep:{label:'Sweep Shot',batX:-0.9,batZ:1.25,lean:0.45,hipsY:0.62,rot:0.5,aRx:[-0.5,-1.3],aRe:[-0.9,-0.5],aLx:[-0.3,-0.7],foot:-0.15},
   loft:{label:'Lofted Drive',batX:[-0.5,-2.9],batZ:0.2,lean:0.05,hipsY:0.98,rot:0.2,aRx:[-0.5,-2.6],aRe:[-0.9,-0.2],aLx:[-0.3,-0.9],foot:-0.45},
   flick:{label:'Leg Glance',batX:[-0.5,-1.4],batZ:0.9,lean:0.35,hipsY:0.98,rot:-0.5,aRx:[-0.5,-1.1],aRe:[-0.9,-0.6],aLx:[-0.3,-0.6],foot:-0.45},
-  slog:{label:'Slog Sweep',batX:[-0.5,-2.7],batZ:0.9,lean:0.35,hipsY:0.98,rot:1.0,aRx:[-0.5,-2.3],aRe:[-0.9,-0.3],aLx:[-0.3,-1.0],foot:0.45},
+  slog:{label:'Slog Sweep',batX:[-0.5,-2.7],batZ:0.9,lean:0.25,hipsY:0.98,rot:0.65,aRx:[-0.5,-2.3],aRe:[-0.9,-0.3],aLx:[-0.3,-1.0],foot:0.45},
 };
 const lv=(v,s)=>Array.isArray(v)?v[0]+(v[1]-v[0])*s:v;
 function swingPoseFor(sh,s){
@@ -396,7 +443,9 @@ function renderTeams(){
 }
 userTeam=TEAMS.find(t=>t.id==='PAK');oppTeam=TEAMS.find(t=>t.id==='IND');renderTeams();
 document.querySelectorAll('.over').forEach(b=>b.onclick=()=>{document.querySelectorAll('.over').forEach(x=>x.classList.remove('active'));b.classList.add('active');overs=+b.dataset.over;});
-$('btn-play').onclick=()=>{unlockAudio();M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('btn-heads').disabled=false;$('btn-tails').disabled=false;};
+$('btn-play').onclick=()=>{unlockAudio();resetSelections();renderSelect();showScreen('screen-select');};
+$('btn-select-continue').onclick=()=>{unlockAudio();M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';$('btn-heads').disabled=false;$('btn-tails').disabled=false;};
+$('btn-select-back').onclick=()=>{showScreen('screen-home');renderTeams();};
 function tossDone(userWon){
   // A toss happens once: lock the call buttons so repeated clicks cannot
   // re-roll it and leave contradictory messages on screen.
@@ -416,6 +465,7 @@ $('btn-start-match').onclick=()=>{
   const batFirst=userBatsFirst?userTeam:oppTeam, bowlFirst=userBatsFirst?oppTeam:userTeam;
   startInnings(M,batFirst,bowlFirst,null);
   setupPlayers(batFirst,bowlFirst);
+  applySelections();
   strikerFig=batFigA;nonStrikerFig=batFigB;
   $('commentary-list').innerHTML='';$('scorecard-wrap').classList.add('hidden');
   say(`🏏 Match started: ${userTeam.name} vs ${oppTeam.name}, ${overs} overs. ${batFirst.name} batting first.`);
@@ -615,6 +665,7 @@ function endBall(){
         const batFirst=!userBatsFirst?userTeam:oppTeam, bowlFirst=!userBatsFirst?oppTeam:userTeam;
         startInnings(M,batFirst,bowlFirst,target);
         setupPlayers(batFirst,bowlFirst);
+        applySelections();
         strikerFig=batFigA;nonStrikerFig=batFigB;
         resetBall();renderAll();updateControls();setCam(userCam);
         say(`🏏 Second innings: ${batFirst.name} need ${target} to win.`);
@@ -673,7 +724,7 @@ $('btn-sound').onclick=()=>{soundOn=!soundOn;if(!soundOn&&('speechSynthesis' in 
 $('btn-quality').onclick=()=>{qualityHigh=!qualityHigh;renderer.shadowMap.enabled=qualityHigh;renderer.setPixelRatio(qualityHigh?Math.min(devicePixelRatio,3):1);scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});$('btn-quality').textContent=qualityHigh?'🎞 High':'🎞 Low';};
 $('btn-cam').onclick=()=>{const order=['broadcast','side','wide','follow'];const nx=order[(order.indexOf(camMode)+1)%order.length];camMode=nx;userCam=nx;if(nx==='follow'){const b=$('btn-cam');if(b){b.textContent='📷';b.title='Camera: Follow';}}else setCam(nx);};
 $('btn-scorecard').onclick=()=>{$('scorecard-wrap').classList.toggle('hidden');renderScorecard();};
-$('btn-rematch').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');M=createMatch(userTeam,oppTeam,overs);showScreen('screen-toss');$('toss-result').textContent='';$('toss-choice').classList.add('hidden');$('btn-start-match').classList.add('hidden');$('toss-text').textContent='Call it:';$('btn-heads').disabled=false;$('btn-tails').disabled=false;};
+$('btn-rematch').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');renderSelect();showScreen('screen-select');};
 $('btn-home').onclick=()=>{clearAutoTimer();document.body.classList.remove('in-match');showScreen('screen-home');renderTeams();};
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'){e.preventDefault();if(phase==='replay')endReplay();else if(phase==='travel')onHit();else if(phase==='idle')startBall();}
@@ -805,7 +856,7 @@ function updatePhase(){
       keepFig.group.position.lerp(V3(0,0,12.6),V3(a.to.x*0.7,0,a.to.z*0.8),q);
       const s=Math.sin(gameTime*16);setPose(keepFig,{...KEEPER,lLx:s*0.7,lRx:-s*0.7});
     } else if(a.type==='dot'){
-      setPose(keepFig,{...KEEPER,hipsY:0.60+Math.sin(gameTime*8)*0.02});
+      setPose(keepFig,{...KEEPER,hipsY:0.72+Math.sin(gameTime*8)*0.02});
     }
     // Backup fielder supports the primary chaser, never stands frozen.
     if(a.backup){
@@ -895,7 +946,7 @@ function loop(){
       fig.group.position.x=home.x+Math.sin(gameTime*1.3+i)*0.25;
       fig.group.position.z=home.z+Math.cos(gameTime*1.1+i*2)*0.25;
     });
-    setPose(keepFig,{...KEEPER,hipsY:0.60+Math.sin(gameTime*3)*0.02});
+    setPose(keepFig,{...KEEPER,hipsY:0.72+Math.sin(gameTime*3)*0.02});
   }
   if(markerMesh){
     const show=!!(M&&!userBattingNow()&&(phase==='idle'||phase==='runup'||phase==='deliver'));

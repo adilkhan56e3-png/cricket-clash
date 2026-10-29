@@ -20,6 +20,11 @@ h2{margin:10px 0}.note{font-size:.85rem;color:#bfe8cd;background:#12291d;border:
 .pill{padding:9px 14px;border-radius:999px;border:2px solid #2a4a38;background:#12291d;color:#eafff0;cursor:pointer;font-weight:700}
 .pill.active{background:#ffd700;color:#111;border-color:#ffd700}
 .pill:disabled{opacity:.5;cursor:default}
+.sel-list{display:flex;flex-direction:column;gap:6px}
+.sel-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(30,58,47,.6);color:#fff;font-weight:700;cursor:pointer;text-align:left}
+.sel-item.sel{background:#ffd700;color:#111;border-color:#ffd700}
+.sel-item .role{font-size:.72rem;opacity:.75}
+.sel-item .badge{min-width:26px;text-align:center;font-weight:800}
 .btn-big{display:block;width:100%;padding:16px;background:#16a34a;color:#fff;border:none;border-radius:12px;font-size:1.2rem;font-weight:800;cursor:pointer;margin:12px 0}
 .btn-big:disabled{opacity:.5}.btn-sec{background:#1e3a2f;color:#eafff0;border:1px solid #2a4a38;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}
 .hidden{display:none!important}
@@ -129,6 +134,19 @@ canvas.map{background:#0b3d1e;border-radius:8px}
       </div>
     </div>
     <button class="btn-big hidden" id="btn-start-match">▶ Start Match</button>
+  </section>
+
+  <!-- PLAYER SELECTION -->
+  <section id="screen-select" class="screen">
+    <h2>🏏 Apni team chunein</h2>
+    <p class="note" id="sel-team-note"></p>
+    <h3>Opening batters — 2 chunein</h3>
+    <div id="sel-openers" class="sel-list"></div>
+    <h3>Bowlers — 5 tak chunein</h3>
+    <div id="sel-bowlers" class="sel-list"></div>
+    <p class="note">Kuch na badlein to auto selection hogi: pehle 2 openers, behtareen 5 bowlers. Opponent ki team auto rahegi.</p>
+    <button class="btn-big" id="btn-select-continue">▶ Continue to Toss</button>
+    <button class="pill" id="btn-select-back" style="margin-top:8px">← Back</button>
   </section>
 
   <!-- MATCH: single unified game screen -->
