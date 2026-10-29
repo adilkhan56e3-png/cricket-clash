@@ -136,15 +136,15 @@ function makeHumanoid({kit,pants,skin,helmet,padder=false,trim=0xffffff,hairC=0x
   const skull=new THREE.Mesh(new THREE.SphereGeometry(0.125,20,16),skinM);skull.castShadow=true;head.add(skull);
   // Open helmet shell: shallow cap above the brows, so the face stays visible
   // (the old deep shell reached eye level and hid the whole face).
-  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.148,20,16,0,Math.PI*2,0,Math.PI*0.38),helmM);helm.position.y=0.02;helm.castShadow=true;head.add(helm);
+  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.148,20,16,0,Math.PI*2,0,Math.PI*0.30),helmM);helm.position.y=0.02;helm.castShadow=true;head.add(helm);
   // Helmet peak sits above the eyes, not across them.
   const visor=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.06),matC(0x1f2937));visor.position.set(0,0.075,0.13);head.add(visor);
   // Face: eyes, pupils, brows, nose, mouth, ears, hair at back/sides.
   const whiteM=matC(0xffffff),darkM=matC(0x1f2937),mouthM=matC(0x7f1d1d);
   [-1,1].forEach(s=>{
-    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.027,10,8),whiteM);eye.position.set(0.05*s,0.02,0.115);head.add(eye);
-    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.014,8,8),darkM);pup.position.set(0.05*s,0.02,0.134);head.add(pup);
-    const brow=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.012,0.01),darkM);brow.position.set(0.05*s,0.058,0.12);head.add(brow);
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(0.032,10,8),whiteM);eye.position.set(0.05*s,0.02,0.115);head.add(eye);
+    const pup=new THREE.Mesh(new THREE.SphereGeometry(0.016,8,8),darkM);pup.position.set(0.05*s,0.02,0.138);head.add(pup);
+    const brow=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.016,0.01),darkM);brow.position.set(0.05*s,0.058,0.12);head.add(brow);
     const ear=new THREE.Mesh(new THREE.SphereGeometry(0.028,8,8),skinM);ear.position.set(0.125*s,0,0);head.add(ear);
   });
   const nose=new THREE.Mesh(new THREE.BoxGeometry(0.034,0.06,0.035),skinM);nose.position.set(0,-0.02,0.128);head.add(nose);
@@ -189,7 +189,7 @@ function setPose(p,o){
 }
 const IDLE={};
 const STANCE={hipsY:0.88,lean:0.28,aRx:-0.5,aRz:-0.2,aRe:-0.9,aLx:-0.3,aLz:0.3,aLe:-0.7,lLx:0.35,lLk:-0.55,lRx:0.15,lRk:-0.25,batX:-0.5};
-const KEEPER={hipsY:0.72,lean:0.30,aRx:-0.9,aRz:-0.4,aRe:-0.5,aLx:-0.9,aLz:0.4,aLe:-0.5,lLx:0.7,lLk:-1.0,lRx:0.7,lRk:-1.0,batX:-0.3};
+const KEEPER={hipsY:0.66,lean:0.32,aRx:-0.9,aRz:-0.4,aRe:-0.5,aLx:-0.9,aLz:0.4,aLe:-0.5,lLx:0.8,lLk:-1.15,lRx:0.8,lRk:-1.15,batX:-0.3};
 const skinTones=[0xffdbac,0xf1c27d,0xe0ac69,0xc68642,0x8d5524];
 const skinFor=n=>{let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))>>>0;return skinTones[h%skinTones.length];};
 const hairTones=[0x111827,0x3f2d20,0x1f2937,0x4b3621];
@@ -349,7 +349,7 @@ function endReplay(){
   if(inn){const tk=$('ticker');if(tk)tk.textContent=`🏏 Live: ${inn.batTeam.name} ${inn.score}/${inn.wkts} (${fmtOvers(inn.balls)} ov)`;}
 }
 let strikerFig=null,nonStrikerFig=null;
-const SHOT_DIRS={drive:{x:0.25,z:1},cut:{x:1,z:0.15},pull:{x:-1,z:0.1},sweep:{x:-0.8,z:0.6},loft:{x:0.35,z:1},defend:{x:0,z:0.2},flick:{x:-0.5,z:0.5},slog:{x:-1,z:0.4}};
+const SHOT_DIRS={drive:{x:0.6,z:-1},cut:{x:1,z:0.15},pull:{x:-1,z:0.1},sweep:{x:-0.8,z:0.6},loft:{x:0.4,z:-1},defend:{x:0,z:0.2},flick:{x:-0.5,z:0.5},slog:{x:-1,z:0.4}};
 // Every shot has its own visible identity: bat angle, body height,
 // torso turn, arm arc and footwork — so a CUT never looks like a LOFT.
 // batX/aRx accept [from,to] interpolated by the swing progress s.
@@ -454,9 +454,15 @@ function tossDone(userWon){
   // A toss happens once: lock the call buttons so repeated clicks cannot
   // re-roll it and leave contradictory messages on screen.
   $('btn-heads').disabled=true;$('btn-tails').disabled=true;
-  $('toss-result').textContent=userWon?`${userTeam.name} won the toss!`:`${oppTeam.name} won the toss and chose to ${Math.random()<0.5?'bat':'bowl'} first.`;
-  if(userWon){$('toss-choice').classList.remove('hidden');}
-  else{userBatsFirst=!(Math.random()<0.5);$('btn-start-match').classList.remove('hidden');}
+  if(userWon){$('toss-result').textContent=`${userTeam.name} won the toss!`;$('toss-choice').classList.remove('hidden');}
+  else{
+    // ONE draw decides both the announced choice and the actual innings:
+    // two separate draws could announce "chose to bowl" yet start the
+    // opponent batting, which is exactly what a check caught.
+    const oppBatsFirst=Math.random()<0.5;
+    $('toss-result').textContent=`${oppTeam.name} won the toss and chose to ${oppBatsFirst?'bat':'bowl'} first.`;
+    userBatsFirst=!oppBatsFirst;$('btn-start-match').classList.remove('hidden');
+  }
   M.tossWinner=userWon?userTeam:oppTeam;M.userBatsFirst=userBatsFirst;
 }
 $('btn-heads').onclick=()=>{const won=Math.random()<0.5;tossDone(won);if(won)$('toss-text').textContent='Heads! You called correctly.';else $('toss-text').textContent='Tails — you lost the toss.';};
@@ -582,7 +588,7 @@ function finishTravel(){
   lastEv=ev;
   // shot direction for animation + wagon wheel
   let dir;
-  if(ballData.userBatting){dir={...SHOT_DIRS[ballData.shot]};dir.x=Math.max(-1.4,Math.min(1.4,dir.x+(ballData.joyX||0)*0.7));dir.z=Math.max(0.1,Math.min(1.3,dir.z+(ballData.joyY||0)*0.25));}
+  if(ballData.userBatting){dir={...SHOT_DIRS[ballData.shot]};dir.x=Math.max(-1.4,Math.min(1.4,dir.x+(ballData.joyX||0)*0.7));dir.z=Math.max(-1.3,Math.min(1.3,dir.z+(ballData.joyY||0)*0.25));}
   else dir={...SHOT_DIRS[ballData.shot]};
   if(res.runs===4||res.runs===6)dir={x:dir.x*1.2,z:dir.z};
   lastShotDir=dir;
@@ -868,7 +874,7 @@ function updatePhase(){
       keepFig.group.position.lerp(V3(0,0,12.6),V3(a.to.x*0.7,0,a.to.z*0.8),q);
       const s=Math.sin(gameTime*16);setPose(keepFig,{...KEEPER,lLx:s*0.7,lRx:-s*0.7});
     } else if(a.type==='dot'){
-      setPose(keepFig,{...KEEPER,hipsY:0.72+Math.sin(gameTime*8)*0.02});
+      setPose(keepFig,{...KEEPER,hipsY:0.66+Math.sin(gameTime*8)*0.02});
     }
     // Backup fielder supports the primary chaser, never stands frozen.
     if(a.backup){
@@ -958,7 +964,7 @@ function loop(){
       fig.group.position.x=home.x+Math.sin(gameTime*1.3+i)*0.25;
       fig.group.position.z=home.z+Math.cos(gameTime*1.1+i*2)*0.25;
     });
-    setPose(keepFig,{...KEEPER,hipsY:0.72+Math.sin(gameTime*3)*0.02});
+    setPose(keepFig,{...KEEPER,hipsY:0.66+Math.sin(gameTime*3)*0.02});
   }
   if(markerMesh){
     const show=!!(M&&!userBattingNow()&&(phase==='idle'||phase==='runup'||phase==='deliver'));
