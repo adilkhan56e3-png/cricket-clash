@@ -25,6 +25,8 @@ h2{margin:10px 0}.note{font-size:.85rem;color:#bfe8cd;background:#12291d;border:
 .sel-item.sel{background:#ffd700;color:#111;border-color:#ffd700}
 .sel-item .role{font-size:.72rem;opacity:.75}
 .sel-item .badge{min-width:26px;text-align:center;font-weight:800}
+.stance-row{margin-top:8px;font-size:.72rem;font-weight:700;color:#ffd700}
+.stance-row input{accent-color:#ffd700}
 .btn-big{display:block;width:100%;padding:16px;background:#16a34a;color:#fff;border:none;border-radius:12px;font-size:1.2rem;font-weight:800;cursor:pointer;margin:12px 0}
 .btn-big:disabled{opacity:.5}.btn-sec{background:#1e3a2f;color:#eafff0;border:1px solid #2a4a38;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}
 .hidden{display:none!important}
@@ -186,7 +188,7 @@ canvas.map{background:#0b3d1e;border-radius:8px}
           <div>Tap HIT at the right moment! <span id="timing-hint"></span></div>
           <div class="timing-bar"><div id="timing-needle"></div><div class="zone-perfect"></div><div class="zone-good"></div></div>
         </div>
-        <div class="ovl-title">SHOT — ball khud aayegi, sirf HIT dabao (Space = HIT, 1–6 = shots)</div>
+        <div class="ovl-title">SHOT — ball khud aayegi, sirf HIT dabao (Space = HIT, 1–8 = shots)</div>
         <div class="shot-grid">
           <button class="shot-btn shot" data-shot="defend">🛡️ DEFEND</button>
           <button class="shot-btn shot active" data-shot="drive">🏏 DRIVE</button>
@@ -196,6 +198,10 @@ canvas.map{background:#0b3d1e;border-radius:8px}
           <button class="shot-btn shot" data-shot="loft">🚀 LOFT</button>
           <button class="shot-btn shot" data-shot="flick">🪶 FLICK</button>
           <button class="shot-btn shot" data-shot="slog">💥 SLOG</button>
+        </div>
+        <div class="stance-row">
+          <div>BATTER POSITION — <span id="stance-label">Normal</span></div>
+          <div style="display:flex;gap:6px;align-items:center"><span>◀ Aage</span><input id="stance-slider" type="range" min="-1" max="1" step="0.1" value="0" style="flex:1"><span>Peeche ▶</span></div>
         </div>
         <button id="btn-bowl-ball" class="btn-big">🎳 Bowl the Ball</button>
         <button id="btn-auto-toggle" class="btn-sec" style="width:100%;margin-top:8px">🤖 Auto bowling: ON</button>

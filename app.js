@@ -223,8 +223,8 @@ function setupPlayers(batTeam,bowlTeam){
     scene.add(f.group);fieldFigs.push({fig:f,home:{x:sp.x,z:sp.z},role:sp.role});
   });
   // positions: striker near batting stumps, non-striker near bowler stumps
-  batFigA.group.position.set(0.95,0,8.6);batFigA.group.rotation.y=Math.PI;
-  batFigB.group.position.set(-0.95,0,-8.6);batFigB.group.rotation.y=0;
+  batFigA.group.position.set(0.8,0,8.6);batFigA.group.rotation.y=Math.PI;
+  batFigB.group.position.set(-0.8,0,-8.6);batFigB.group.rotation.y=0;
   bowlFig.group.position.set(0,0,-17);bowlFig.group.rotation.y=0;
   keepFig.group.position.set(0,0,12.6);keepFig.group.rotation.y=Math.PI;
   setPose(batFigA,STANCE);setPose(batFigB,IDLE);setPose(bowlFig,IDLE);setPose(keepFig,KEEPER);
@@ -262,6 +262,10 @@ function trackBall(bpos){
 // ---------- Game state ----------
 let userTeam=null,oppTeam=null,overs=5,M=null,userBatsFirst=true;
 let shot='drive',delivery='fast',ballBusy=false,paused=false,qualityHigh=true;
+// Batter stance position, set by the user: -1 = forward (toward bowler),
+// +1 = back (toward the stumps). Base crease is 8.6, stumps at 10.
+let stancePos=0;
+const strikerBaseZ=()=>Math.max(7.4,Math.min(9.6,8.6+stancePos*1.2));
 let userOpeners=[],userBowlers=[];
 const roleLabel=r=>r==='BAT'?'Batsman':r==='WK'?'Wicketkeeper':r==='BOWL'?'Bowler':'All-rounder';
 function resetSelections(){
@@ -489,8 +493,8 @@ function resetBall(){
   ballGrp.visible=false;phase='idle';ballBusy=false;
   joyX=0;joyY=0;const kb=$('joystick-knob');if(kb)kb.style.transform='';const ja=$('joy-arrow');if(ja)ja.textContent='▲';
   bowlFig.group.position.set(0,0,-17);setPose(bowlFig,IDLE);
-  strikerFig.group.position.set(0.95,0,8.6);strikerFig.group.rotation.set(0,Math.PI,0);setPose(strikerFig,STANCE);
-  nonStrikerFig.group.position.set(-0.95,0,-8.6);nonStrikerFig.group.rotation.set(0,0,0);setPose(nonStrikerFig,IDLE);
+  strikerFig.group.position.set(0.8,0,strikerBaseZ());strikerFig.group.rotation.set(0,Math.PI,0);setPose(strikerFig,STANCE);
+  nonStrikerFig.group.position.set(-0.8,0,-8.6);nonStrikerFig.group.rotation.set(0,0,0);setPose(nonStrikerFig,IDLE);
   fieldFigs.forEach(({fig,home})=>{fig.group.position.set(home.x,0,home.z);fig.group.rotation.x=0;setPose(fig,IDLE);});
   keepFig.group.position.set(0,0,12.6);keepFig.group.rotation.y=Math.PI;
   setPose(keepFig,KEEPER);resetStumps(stumpsBat);resetStumps(stumpsBowl);
@@ -695,6 +699,14 @@ function endMatch(){
 }
 // ---------- Controls wiring ----------
 document.querySelectorAll('.shot').forEach(b=>b.onclick=()=>{document.querySelectorAll('.shot').forEach(x=>x.classList.remove('active'));b.classList.add('active');shot=b.dataset.shot;unlockAudio();});
+const stanceSlider=$('stance-slider');
+if(stanceSlider)stanceSlider.oninput=()=>{
+  stancePos=parseFloat(stanceSlider.value)||0;
+  const lbl=$('stance-label');if(lbl)lbl.textContent=stancePos<-0.3?'Aage':(stancePos>0.3?'Peeche':'Normal');
+  // Move the striker at once when he is standing at the crease (never
+  // during a run, replay or result animation, which own his position).
+  if(strikerFig&&phase!=='result'&&phase!=='replay')strikerFig.group.position.z=strikerBaseZ();
+};
 document.querySelectorAll('.btype').forEach(b=>b.onclick=()=>{document.querySelectorAll('.btype').forEach(x=>x.classList.remove('active'));b.classList.add('active');bowlType=b.dataset.btype;unlockAudio();});
 document.querySelectorAll('.blen').forEach(b=>b.onclick=()=>{document.querySelectorAll('.blen').forEach(x=>x.classList.remove('active'));b.classList.add('active');bowlLength=b.dataset.blen;unlockAudio();});
 const pSlider=$('power-slider');
@@ -781,7 +793,7 @@ function updatePhase(){
     // arriving at the crease (front-foot shots step toward the bowler).
     const fwShot=ballData.shot||'drive';
     const fw=(SHOT_SWING[fwShot]?.foot??0.45)*Math.min(1,Math.max(0,(p-0.5)/0.3));
-    strikerFig.group.position.z=8.6+fw;
+    strikerFig.group.position.z=Math.max(7.0,Math.min(9.7,strikerBaseZ()+fw));
     // Bat meets ball at contact with the SHOT's own full-body swing:
     // a CUT is flat and sideways, a SWEEP kneels low, a LOFT finishes
     // high, a PULL/SLOG turns the whole body — never one generic swing.
@@ -838,8 +850,8 @@ function updatePhase(){
       const runs=a.runs||1,prog=p*runs,seg=Math.floor(prog),fr=prog-seg;
       const sz=seg%2===0?8.6-17.2*fr:-8.6+17.2*fr;
       const nz=seg%2===0?-8.6+17.2*fr:8.6-17.2*fr;
-      strikerFig.group.position.set(0.95,0,sz);strikerFig.group.rotation.y=seg%2===0?Math.PI:0;
-      nonStrikerFig.group.position.set(-0.95,0,nz);nonStrikerFig.group.rotation.y=seg%2===0?0:Math.PI;
+      strikerFig.group.position.set(0.8,0,sz);strikerFig.group.rotation.y=seg%2===0?Math.PI:0;
+      nonStrikerFig.group.position.set(-0.8,0,nz);nonStrikerFig.group.rotation.y=seg%2===0?0:Math.PI;
       const s=Math.sin(gameTime*16);
       setPose(strikerFig,{...STANCE,lLx:s*0.7,lRx:-s*0.7});
       setPose(nonStrikerFig,{lLx:-s*0.7,lRx:s*0.7});
